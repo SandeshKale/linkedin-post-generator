@@ -1,0 +1,45 @@
+{
+  "slug": "rag-guardrails",
+  "title": "Semantic Caching Cuts Inference Cost 40%",
+  "author": "Sandesh Kale",
+  "handle": "GenAI Solutions Architect",
+  "slides": [
+    {
+      "type": "hook",
+      "eyebrow": "Deterministic AI Systems",
+      "headline": "Stop paying for duplicate context windows.",
+      "sub": "How real-time semantic caching saves 40% on inference costs in multi-provider cascades."
+    },
+    {
+      "type": "diagram",
+      "heading": "The Cache-First Request Path",
+      "mermaid": "graph TD\n  A[User Prompt] --> B(Embed Query)\n  B --> C{Semantic Cache Hit?}\n  C -- Yes --> D[Return Cached Response]\n  C -- No --> E[Route to LLM Provider]\n  E --> F[Write-Through Cache]\n  F --> D"
+    },
+    {
+      "type": "code",
+      "heading": "Cache Key From Embedding",
+      "lang": "typescript",
+      "code": "const cacheKey = await embed(prompt);\nconst hit = await vectorStore.search(cacheKey, {\n  threshold: 0.92,\n});\n\nif (hit) return hit.response;\n\nconst response = await llm.complete(prompt);\nawait vectorStore.upsert(cacheKey, response);\nreturn response;"
+    },
+    {
+      "type": "stat",
+      "value": "40%",
+      "label": "Lower inference spend",
+      "context": "Measured across a 3-provider cascade (GPT, Claude, Gemini) after routing repeat-intent queries through a semantic cache with a 0.92 cosine threshold."
+    },
+    {
+      "type": "list",
+      "heading": "Where This Breaks Without Guardrails",
+      "items": [
+        "Threshold too loose: near-duplicate prompts return stale, wrong answers.",
+        "No TTL: cached responses outlive the facts they describe.",
+        "No provider tagging: a GPT-cached answer gets served for a Claude-routed request."
+      ]
+    },
+    {
+      "type": "cta",
+      "headline": "Follow Sandesh Kale",
+      "sub": "for more deterministic GenAI systems, one architecture breakdown at a time."
+    }
+  ]
+}
