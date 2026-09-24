@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { buildHtml } from '../templates/carousel.mjs';
 import { renderMermaid, closeMermaidBrowser } from './mermaid.mjs';
 import { highlight } from './shiki.mjs';
+import { parseManifest } from './manifest-schema.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -44,12 +45,10 @@ async function hydrateSlide(slide) {
 
 async function main() {
   const manifestPath = resolve(manifestArg);
-  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const raw = JSON.parse(await readFile(manifestPath, 'utf8'));
 
-  if (!manifest.slug) manifest.slug = basename(manifestPath, extname(manifestPath));
-  if (!Array.isArray(manifest.slides) || manifest.slides.length === 0) {
-    throw new Error(`Manifest ${manifestPath} has no slides[]`);
-  }
+  if (!raw.slug) raw.slug = basename(manifestPath, extname(manifestPath));
+  const manifest = parseManifest(raw);
 
   console.log(`Building "${manifest.title}" (${manifest.slides.length} slides)...`);
   const slides = await Promise.all(manifest.slides.map(hydrateSlide));

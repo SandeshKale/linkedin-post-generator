@@ -37,7 +37,10 @@ node scripts/render.mjs output/my-new-post/carousel.html
 
 ## How it works
 
-1. **`scripts/build.mjs`** reads the manifest and hydrates it: Mermaid
+1. **`scripts/build.mjs`** validates the manifest against a Zod schema
+   (`scripts/manifest-schema.mjs` — unknown slide types or missing required
+   fields fail immediately with a clear list of what's wrong), then
+   hydrates it: Mermaid
    diagram source is pre-rendered to a static `<svg>` (`scripts/mermaid.mjs`,
    via a throwaway headless-Chromium pass) and code blocks are pre-highlighted
    to Shiki HTML (`scripts/shiki.mjs`, pure Node). It hands the fully

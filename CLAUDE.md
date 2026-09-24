@@ -73,6 +73,22 @@ wrong-margin PDF. Per-slide PNGs are exported separately with
 `elementHandle.screenshot()` on each `.slide`, which needs no pagination
 CSS at all — element screenshots crop to the element's own box regardless.
 
+## Manifest validation (guardrails)
+
+`scripts/manifest-schema.mjs` defines a Zod `discriminatedUnion('type', ...)`
+schema covering the manifest shape and all six slide types.
+`scripts/build.mjs` calls `parseManifest()` on the parsed JSON before doing
+anything else — an unknown `slide.type`, a missing required field (e.g. a
+`hook` slide without `headline`), or a non-kebab-case `slug` fails fast with
+every violation listed, instead of surfacing later as an obscure `undefined`
+deep inside `templates/carousel.mjs`. This is the guardrail layer a future
+LLM "Planner" step (generating manifests instead of a human hand-writing
+them) would need in front of `build.mjs` regardless — enforced now so any
+manifest, hand-written or generated, gets the same validation. Adding a new
+slide type means updating both `templates/carousel.mjs`'s `RENDERERS` map
+*and* `manifest-schema.mjs`'s slide union — the two are meant to be kept in
+lockstep, not just the former.
+
 ## Slide manifest schema (`content/*.json`)
 
 ```jsonc
