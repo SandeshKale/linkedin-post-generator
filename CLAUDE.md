@@ -40,6 +40,98 @@ Playwright (via `scripts/mermaid.mjs`) is purely to pre-flatten Mermaid
 source into SVG strings, a separate throwaway browser instance, closed
 before `build.mjs` exits.
 
+Three-stage pipeline once the optional quality gate is included — see
+"Content quality gate (Jev)" below for why it's a separate stage rather
+than folded into `build.mjs`:
+
+```bash
+node scripts/quality-gate.mjs content/<manifest>.json [--strict]  # advisory (or blocking) judgment, no output files
+node scripts/build.mjs content/<manifest>.json                    # → output/<slug>/carousel.html
+node scripts/render.mjs output/<slug>/carousel.html                # → carousel.pdf + slide-NN.png
+```
+
+## Content quality gate (Jev)
+
+`scripts/quality-gate.mjs` runs a manifest's content past [Jev](https://typesafe.ai)
+(TypeSafe AI's "System One" decision model) before it's built, for the class
+of judgment a Zod schema can't make: not "is this JSON well-formed" but "is
+this hook actually going to land." It answers a fixed set of questions per
+manifest — one `systemOne` call, several questions evaluated in parallel
+(Jev's "speculative fan-out" pattern):
+
+- **`hook_strength`** (Score, 4 levels) — only if a `hook` slide exists.
+- **`cta_is_specific`** (Noul) — only if a `cta` slide exists; flags generic
+  "follow me for more" boilerplate disconnected from the post's own content.
+- **`jargon_risk`** (Noul) — always run, over every slide's text combined;
+  flags undefined acronyms/jargon the stated audience wouldn't recognize.
+- **`diagram_readability_<i>`** (Score, 3 levels) — one per `diagram` slide;
+  judges legibility at LinkedIn feed-thumbnail size, not full-screen.
+
+**Why this is its own stage, run *before* `build.mjs`, never inside it or
+`render.mjs`:** this repo's core render contract (above) requires the
+build/render path to be fully deterministic and offline — no runtime JS, no
+async resolution — by the time a slide reaches Chromium. A call to an
+external LLM-judge is neither deterministic (it can disagree with itself
+between runs — see the hook-strength example below) nor offline. Keeping it
+a separate, deliberately-invoked step (like running a linter before a
+build, not inside one) means `build.mjs`/`render.mjs` keep their existing
+guarantee unconditionally, whether or not the quality gate is ever run.
+
+**"Input data must always be of the highest quality" — what that means in
+code, not just in principle:** `buildState()` in `quality-gate.mjs`
+constructs one structured `state` object per Jev's own guidance
+(`docs.typesafe.ai/concepts/state`: prefer a named-field object over a
+flattened string, "put related information together," and separate the
+*content being judged* from the *criteria for judging it* — the criteria
+live in each question's `instructions`/`criteria`, not in `state`). Concretely
+this repo's `state` always includes:
+- an explicit `audience` field spelling out who the post is for and what
+  the account's brand actually is — without this, "is this hook strong" has
+  no fixed bar to judge against;
+- the full slide content relevant to each question, grouped by purpose
+  (`hook_slide`, `cta_slide`, `all_slide_text`, `diagrams`) rather than one
+  giant blob — each question's `instructions` points at the specific field
+  it should look at (e.g. "see `state.hook_slide`");
+- raw code/Mermaid source is *excluded* from the jargon check (`slideText()`
+  skips `code`/`mermaid` fields) — jargon inside a code block is expected
+  and not a defect, so including it would just add noise the model has to
+  correctly ignore rather than removing a real signal.
+
+**Confidence gating**, per Jev's own confidence-routing pattern
+(`docs.typesafe.ai/patterns/confidence-routing`): every answer resolves to
+`OK` / `FLAG` / `REVIEW`, never treated as ground truth on its own.
+`CONFIDENCE_FLOOR = 0.6` (Jev's own docs: "start with conservative
+thresholds... adjust as you observe results" — this is deliberately the
+same floor their own example uses, not independently tuned yet) — below it,
+the verdict is `REVIEW` regardless of the answer's direction, because Jev's
+own interpretation guidance says a Noul near 0.5 or a low Score `confidence`
+means the model itself doesn't have a clear read; only a confident answer
+resolves to `OK` (good) or `FLAG` (confident problem). Score questions carry
+`confidence` directly from the API; Noul questions don't, so it's derived as
+`|noul − 0.5| × 2` — the same "near 0.5 is uncertain" reading Jev's docs give
+for interpreting a Noul answer on its own, applied as a gate.
+
+By default the gate is advisory: it prints a report and exits 0 even with
+`FLAG`/`REVIEW` rows. Pass `--strict` to make any non-`OK` row exit 1 —
+wire that into CI or a pre-publish check once you trust the thresholds
+against your own results, per Jev's own tuning advice above.
+
+**Auth**: `scripts/jev.mjs` reads the key from `process.env.JEV_API_KEY`
+(this environment's actual variable name) and passes it explicitly as
+`TypeSafeClient({ apiKey })`, rather than relying on the SDK's own default
+env var (`TYPESAFE_API_KEY`) — the two names don't match here, so an
+implicit read would silently fail. Never `echo`/log this value; if you need
+to confirm it's set, check for presence (`[ -n "$JEV_API_KEY" ]` / `env |
+grep -c JEV_API_KEY`), never print it.
+
+**Extending it**: a new decision point is a new entry in `buildQuestions()`
+(pick `score`/`noul`/`choice` per what's being decided — see
+`docs.typesafe.ai/primitives`) plus a matching row-builder in
+`evaluateChecks()`. Keep every new question's `state` reference scoped to
+exactly the field it needs (as the existing four do) rather than dumping
+the whole manifest into every question's `instructions` — that's the same
+"highest quality input" discipline, not a one-time setup step.
+
 ## Repository map
 
 ```
@@ -48,7 +140,10 @@ linkedin-post-generator/
 │   ├── build.mjs           Manifest → self-contained HTML (the "compiler")
 │   ├── render.mjs          HTML → carousel.pdf + slide-NN.png (the "exporter")
 │   ├── mermaid.mjs         Diagram source → static <svg> string, pre-render helper
-│   └── shiki.mjs           Code string → syntax-highlighted <pre> HTML, pre-render helper
+│   ├── shiki.mjs           Code string → syntax-highlighted <pre> HTML, pre-render helper
+│   ├── manifest-schema.mjs Zod schema + parseManifest() — the JSON-shape guardrail
+│   ├── jev.mjs             Jev/TypeSafe AI client wrapper (JEV_API_KEY → TypeSafeClient)
+│   └── quality-gate.mjs    Manifest → Jev content-quality judgment (advisory or --strict), pre-build only
 ├── templates/
 │   └── carousel.mjs        buildHtml({title, author, handle, slides}) — CSS + per-slide-type markup
 ├── content/
@@ -56,7 +151,7 @@ linkedin-post-generator/
 ├── assets/
 │   └── fonts/              Vendored Inter / Space Grotesk / JetBrains Mono (.woff2, OFL) — see "Typography"
 ├── output/                 Generated, gitignored — carousel.html/.pdf, slide-NN.png per slug
-├── package.json            Deps: playwright, mermaid, shiki
+├── package.json            Deps: playwright, mermaid, shiki, zod, @typesafe-ai/sdk
 └── CLAUDE.md               This file
 ```
 

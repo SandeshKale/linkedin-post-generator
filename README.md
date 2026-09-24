@@ -13,6 +13,7 @@ that repo's `window.__seek(t)` time contract for CSS `@page` pagination and
 npm install
 npx playwright install chromium   # first run only, if not already cached
 
+node scripts/quality-gate.mjs content/example-rag-guardrails.json  # optional; needs JEV_API_KEY, see below
 node scripts/build.mjs content/example-rag-guardrails.json
 node scripts/render.mjs output/rag-guardrails/carousel.html
 ```
@@ -62,11 +63,32 @@ Full architecture notes, the slide-type reference, the safe-zone/typography
 rules, and a couple of hard-won rendering gotchas (see: Mermaid text
 clipping) live in `CLAUDE.md`.
 
+## Content quality gate (optional, needs Jev)
+
+`scripts/quality-gate.mjs` sends the manifest to [Jev](https://typesafe.ai)
+for the judgment calls a JSON schema can't make — is the hook actually
+strong, does the CTA read as generic, is there undefined jargon, will a
+diagram be legible at thumbnail size — each scored with a confidence, and
+run *before* `build.mjs`, never inside the deterministic build/render path.
+Requires `JEV_API_KEY` in the environment:
+
+```bash
+export JEV_API_KEY=...          # never commit or log this
+node scripts/quality-gate.mjs content/my-post.json           # advisory report
+node scripts/quality-gate.mjs content/my-post.json --strict   # exit 1 on any flagged/uncertain check
+```
+
+See `CLAUDE.md`'s "Content quality gate (Jev)" for the full design —
+including how the request `state` is structured for high-quality input and
+how confidence gates each verdict.
+
 ## Repo layout
 
 ```
 scripts/     build.mjs (manifest → HTML), render.mjs (HTML → PDF/PNG),
-             mermaid.mjs / shiki.mjs (pre-render helpers)
+             mermaid.mjs / shiki.mjs (pre-render helpers),
+             manifest-schema.mjs (Zod guardrail),
+             jev.mjs / quality-gate.mjs (optional Jev content-quality gate)
 templates/   carousel.mjs — the HTML/CSS template
 content/     JSON slide manifests, one per post
 assets/      Vendored OFL webfonts
