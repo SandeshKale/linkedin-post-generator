@@ -151,8 +151,12 @@ linkedin-post-generator/
 │   ├── example-rag-guardrails.json   Sample manifest (all 6 slide types, no icons — tests the no-icon path)
 │   └── speculative-decoding.json     Sample manifest using icons + a stat "compare" bar chart
 ├── assets/
-│   ├── fonts/              Vendored Inter / Space Grotesk / JetBrains Mono (.woff2, OFL) — see "Typography"
-│   └── icons/tabler/       Vendored Tabler Icons (.svg, MIT) — see "Slide manifest schema"
+│   ├── fonts/              Vendored webfonts (.woff2, OFL) — see "Typography"
+│   ├── icons/              Vendored icon sets incl. tabler/ (.svg) — see "Slide manifest schema"
+│   ├── illustrations/      humaaans-react, flowbite, bioicons — see "Asset library"
+│   ├── logos/, photos/     Brand marks, stock photos — see "Asset library" (licensing caveats)
+│   ├── animations/         From video-generator; NOT directly usable here — see "Asset library"
+│   └── VIDEO_GENERATOR_ATTRIBUTION.md   Per-source license table for the merged-in set
 ├── output/                 Generated, gitignored — carousel.html/.pdf, slide-NN.png per slug
 ├── package.json            Deps: playwright, mermaid, shiki, zod, @typesafe-ai/sdk
 └── CLAUDE.md               This file
@@ -276,6 +280,59 @@ thumbnails. `templates/carousel.mjs` reserves:
 If a new slide type needs full-bleed art behind that safe box (e.g. a
 photo background), keep it on a `z-index: 0` layer under `.safe`, same
 pattern as `.bg-dots`/`.bg-glow`.
+
+## Asset library (merged in from video-generator)
+
+`assets/` also carries a full copy of `video-generator`'s curated
+third-party asset library (fonts/icons merged additively — see below —
+everything else copied wholesale), so a post has real illustration/photo/
+logo material to draw on instead of text-only slides. Per-source licenses
+are in each package's own `LICENSE*` file; `assets/VIDEO_GENERATOR_ATTRIBUTION.md`
+is video-generator's own attribution table for sources that don't ship
+their own license file (read it before using anything from `logos/` or
+`photos/` — `logos/svg-logos/` in particular carries **no license grant at
+all**, reference/identification only, never redistribute as an owned asset).
+
+- **`assets/illustrations/`** — `humaaans-react/` (24 pre-composed
+  character poses, MIT, JSX source with resolvable color props — see
+  `video-generator/CLAUDE.md`'s "Character variety (humaaans)" for the
+  extraction pattern if a post ever wants a character), `flowbite/` and
+  `bioicons/` (full-color illustration SVGs, used as-is).
+- **`assets/logos/`** — `gilbarbara/` (brand logo marks, check its own
+  LICENSE for terms), `svg-logos/` (reference/identification only, no
+  license grant — see above), `unilogo/`.
+- **`assets/photos/servicestack/`** — stock photography.
+- **`assets/fonts/`** — gained `poppins/` and a couple of extra weights on
+  the fonts already vendored here; still needs a matching `@font-face`
+  block in `templates/carousel.mjs::baseStyles()` before use, same as any
+  new family (see "Typography" below).
+- **`assets/icons/`** — `feather/` and `simple-icons/` (brand marks) are
+  new; `tabler/` is a **merge**, not a replace — the icons this repo
+  already vendored via `scripts/icons.mjs`/`npm install --no-save
+  @tabler/icons` (a newer icon set/format) were kept as-is and
+  video-generator's older curated Tabler subset was added alongside
+  without overwriting any filename already in use (its set doesn't even
+  include a couple of names this repo already references, e.g.
+  `git-branch`/`language` — copying over the existing files instead of
+  merging around them would have broken the speculative-decoding post).
+  Both formats are plain `<svg>` markup with `stroke="currentColor"`, so
+  `scripts/icons.mjs`'s raw-inline loader works on either without changes
+  — but if a name exists in both, this repo's own vendored version is the
+  one that's actually on disk.
+
+**The one thing here that does *not* carry over usably: `assets/animations/`.**
+video-generator's whole point for that folder is wiring a real-time CSS/SMIL
+animation pack up to `window.__seek(t)` so it can be scrubbed to an exact
+frame at render time. This repo's render contract (top of this file) is
+stricter than that — `render.mjs` has no time axis at all, just a single
+static `page.pdf()`/`screenshot()` per slide — so an animation pack here
+can only ever supply *one fixed visual state* (e.g. a specific loader
+shape), never actual motion. If a slide ever wants something from
+`assets/animations/`, freeze it to a single static frame at build time
+(bake the exact CSS state into the generated HTML, no `animation-play-state`
+scrubbing trick needed since there's no playback to pause) — don't wire it
+up expecting it to animate, it won't: `render.mjs` never runs long enough
+to see more than the first paint.
 
 ## Typography
 
