@@ -64,6 +64,11 @@ export const manifestSchema = z.object({
   author: z.string().optional(),
   handle: z.string().optional(),
   slides: z.array(slideSchema).min(1, 'manifest needs at least one slide'),
+  // Not rendered on any slide — the post's own text, kept in the same
+  // manifest as its media so one JSON file is the single source of truth
+  // for a post instead of a caption drifting in a separate untracked doc.
+  caption: z.string().optional(),
+  hashtags: z.array(z.string().min(1)).optional(),
 });
 
 /**

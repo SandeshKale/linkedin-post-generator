@@ -1,0 +1,62 @@
+{
+  "slug": "speculative-decoding",
+  "title": "Speculative Decoding: The Math That Makes LLM Inference Faster For Free",
+  "author": "Sandesh Kale",
+  "handle": "GenAI Solutions Architect",
+  "slides": [
+    {
+      "type": "hook",
+      "eyebrow": "Inference Systems",
+      "headline": "Autoregressive decoding is memory-bound, not compute-bound.",
+      "sub": "Speculative decoding fixes the math — and provably never changes a single token the model would have said."
+    },
+    {
+      "type": "diagram",
+      "heading": "Draft, Then Verify — In One Pass",
+      "mermaid": "graph TD\n  A[Current prefix] --> B[Draft model guesses next D tokens fast]\n  B --> C[Target model scores all D+1 positions in ONE forward pass]\n  C --> D{Rejection-sample each draft token}\n  D -- Accepted --> E[Keep token, advance prefix]\n  D -- Rejected --> F[Resample correct token from residual distribution]\n  E --> A\n  F --> A"
+    },
+    {
+      "type": "code",
+      "heading": "Why Quality Never Drops: Modified Rejection Sampling",
+      "lang": "python",
+      "code": "for i, (tok, q_i) in enumerate(zip(draft_toks, draft_probs)):\n    p_i = target_probs[i][tok]\n    if random.random() < min(1.0, p_i / q_i):\n        accept(tok)          # keep it, advance\n        continue\n\n    # Reject: resample from the residual, not the\n    # target's argmax, so the draw stays ~ p_target.\n    residual = clip(target_probs[i] - draft_probs[i], 0)\n    residual /= residual.sum()\n    return sample(residual), \"stop\"\n\n# All accepted: target scored one extra position\n# for free in the same pass — take it as a bonus.\nreturn sample(target_probs[-1]), \"continue\""
+    },
+    {
+      "type": "stat",
+      "value": "~3x",
+      "label": "Faster, zero quality loss",
+      "context": "Google Research's original result: a 60M-parameter T5-small draft model verified against an 11B-parameter T5-XXL target hit ~3x faster inference on translation and summarization — with outputs mathematically guaranteed identical to running the 11B model alone."
+    },
+    {
+      "type": "list",
+      "heading": "Where This Breaks Without Care",
+      "items": [
+        "Draft and target must share a tokenizer — rejection sampling operates token-by-token with no fallback for mismatched vocabularies.",
+        "A weak draft model tanks the acceptance rate: you pay for two forward passes and gain nothing over plain decoding.",
+        "A separate draft model means a second KV cache to manage — EAGLE-style self-drafting avoids this by reusing the target model's own hidden states instead of running an independent model."
+      ]
+    },
+    {
+      "type": "cta",
+      "headline": "Follow Sandesh Kale",
+      "sub": "for more deterministic AI systems breakdowns — the math behind why your inference stack is fast or slow."
+    }
+  ],
+  "caption": "Your LLM isn't slow because it's short on compute. It's slow because generating one token at a time forces the GPU to reload the entire model's weights from memory on every single step — and that memory transfer, not the matrix multiply, is what you're actually waiting on.\n\nSpeculative decoding fixes this, and the elegant part is that it doesn't touch the model's outputs at all.\n\nThe mechanism: a small, fast draft model guesses the next several tokens on its own. The large target model then scores all of those guesses in a single forward pass instead of one slow, memory-bound step per token — trading several cheap-but-serial passes for one pass with much better arithmetic intensity.\n\nThe part that makes this real research and not just a clever hack: which draft tokens survive isn't a similarity heuristic. It's rejection sampling. Each token is accepted with probability min(1, p_target / p_draft); any rejection resamples from the exact residual distribution needed to correct for the draft's bias. The result is mathematically guaranteed to be drawn from precisely the distribution the target model would have produced alone. Same quality, fewer expensive passes.\n\nGoogle Research's original number: pairing a 60M-parameter T5-small draft with an 11B-parameter T5-XXL target got roughly 3x faster inference on translation and summarization tasks.\n\nThe catch: draft and target need matching tokenizers, and a weak draft model can leave you paying for two forward passes for nothing. That's part of why newer approaches like EAGLE attach a lightweight draft head directly to the target model's own hidden states instead of running a fully separate model — no second KV cache to manage.\n\nFull breakdown — the algorithm, the rejection-sampling math, and where it breaks in production — in the carousel.",
+  "hashtags": [
+    "GenAI",
+    "MachineLearning",
+    "LLM",
+    "AIEngineering",
+    "MLOps",
+    "ModelServing",
+    "LLMInference",
+    "SpeculativeDecoding",
+    "DeepLearning",
+    "SoftwareArchitecture",
+    "Transformers",
+    "NeuralNetworks",
+    "SystemsDesign",
+    "AIatScale"
+  ]
+}

@@ -192,9 +192,17 @@ lockstep, not just the former.
   "title": "...",                 // <title>, not shown on any slide
   "author": "Sandesh Kale",       // footer name, omit to hide the footer entirely
   "handle": "GenAI Solutions Architect", // footer subtitle, optional
-  "slides": [ { "type": "hook" | "diagram" | "code" | "stat" | "list" | "cta", ... } ]
+  "slides": [ { "type": "hook" | "diagram" | "code" | "stat" | "list" | "cta", ... } ],
+  "caption": "...",               // optional — the post's own text; not rendered on any slide
+  "hashtags": ["GenAI", "..."]     // optional — without leading #, added by build.mjs
 }
 ```
+
+`caption`/`hashtags` are never touched by `templates/carousel.mjs` — they exist
+so a post's text lives in the same single-source-of-truth JSON file as its
+media. If present, `scripts/build.mjs` writes them out as
+`output/<slug>/caption.md` (caption, blank line, space-joined `#tags`)
+alongside `carousel.html`, ready to paste into LinkedIn's post composer.
 
 Slide types and their fields, all in `templates/carousel.mjs`'s
 `RENDERERS` map:
@@ -284,6 +292,24 @@ then scaled up losslessly by the surrounding `<svg>`'s CSS
 post-layout sidesteps the measurement mismatch entirely. If this needs
 revisiting, verify with a real screenshot (per "Verify visually" below),
 not just by reading the generated SVG.
+
+## Code slide line-length gotcha
+
+`.code-card pre.shiki` sets `white-space: pre-wrap` and `overflow-wrap:
+anywhere` — without it, a code line wider than the card (easily hit by a
+real ~70-character Python line, e.g. a `for i, (draft_tok, q_i) in
+enumerate(zip(...))` header) silently runs off the right edge of a static
+image with no horizontal scroll to fall back on, since this isn't a
+terminal. Found the same way as the Mermaid gotcha above: by rendering a
+real slide and looking at the PNG, not by reading the generated HTML —
+Shiki's output looked completely fine, the clipping only showed up in the
+screenshot. Font size is `22px` (down from an earlier `26px`) for the same
+reason from the other direction: wrapping alone isn't enough if the
+wrapped result no longer fits vertically in the card — keep new code
+snippets to roughly 12-14 short lines and favor short variable names
+(`tok` not `draft_token`) so they read as a single line at this size
+rather than wrapping, which is visually tidier than a wrapped line even
+though wrapping is now a safe fallback either way.
 
 ## Output formats & when to use which
 

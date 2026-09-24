@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * Hydrates a JSON slide manifest (content/<slug>.json) into a self-contained
- * HTML carousel document (output/<slug>/carousel.html), then closes.
+ * HTML carousel document (output/<slug>/carousel.html), then closes. Also
+ * emits output/<slug>/caption.md from the manifest's optional `caption`/
+ * `hashtags` fields, if present — the post's own text lives in the same
+ * manifest as its media instead of drifting in a separate untracked doc.
  *
  * Usage: node scripts/build.mjs <content/manifest.json>
  *
@@ -64,8 +67,16 @@ async function main() {
   await mkdir(outDir, { recursive: true });
   const outPath = resolve(outDir, 'carousel.html');
   await writeFile(outPath, html, 'utf8');
-
   console.log(`Wrote ${outPath}`);
+
+  if (manifest.caption) {
+    const captionPath = resolve(outDir, 'caption.md');
+    const hashtagLine = (manifest.hashtags || []).map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ');
+    const captionDoc = hashtagLine ? `${manifest.caption}\n\n${hashtagLine}\n` : `${manifest.caption}\n`;
+    await writeFile(captionPath, captionDoc, 'utf8');
+    console.log(`Wrote ${captionPath}`);
+  }
+
   console.log(`Next: node scripts/render.mjs ${outPath.replace(ROOT + '/', '')}`);
 }
 

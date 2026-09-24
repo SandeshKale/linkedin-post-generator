@@ -172,8 +172,15 @@ function baseStyles() {
     .code-card pre.shiki {
       margin: 0; padding: 32px; border-radius: 16px;
       font-family: 'JetBrains Mono', monospace !important;
-      font-size: 26px !important; line-height: 1.55 !important;
+      font-size: 22px !important; line-height: 1.5 !important;
       overflow: hidden;
+      /* A code line longer than the card is a static image, not a
+         terminal — there's no horizontal scroll to fall back on, so wrap
+         instead of clipping. Found by rendering a real slide and looking
+         at it (see CLAUDE.md "Verify visually"): a >70-char Python line
+         silently ran off the right edge of the card. */
+      white-space: pre-wrap !important;
+      overflow-wrap: anywhere;
     }
 
     .stat-value {
