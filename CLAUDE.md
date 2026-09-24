@@ -142,14 +142,17 @@ linkedin-post-generator/
 │   ├── mermaid.mjs         Diagram source → static <svg> string, pre-render helper
 │   ├── shiki.mjs           Code string → syntax-highlighted <pre> HTML, pre-render helper
 │   ├── manifest-schema.mjs Zod schema + parseManifest() — the JSON-shape guardrail
+│   ├── icons.mjs           Vendored Tabler icon loader (assets/icons/tabler/*.svg)
 │   ├── jev.mjs             Jev/TypeSafe AI client wrapper (JEV_API_KEY → TypeSafeClient)
 │   └── quality-gate.mjs    Manifest → Jev content-quality judgment (advisory or --strict), pre-build only
 ├── templates/
 │   └── carousel.mjs        buildHtml({title, author, handle, slides}) — CSS + per-slide-type markup
 ├── content/
-│   └── example-rag-guardrails.json   Sample manifest (all 6 slide types)
+│   ├── example-rag-guardrails.json   Sample manifest (all 6 slide types, no icons — tests the no-icon path)
+│   └── speculative-decoding.json     Sample manifest using icons + a stat "compare" bar chart
 ├── assets/
-│   └── fonts/              Vendored Inter / Space Grotesk / JetBrains Mono (.woff2, OFL) — see "Typography"
+│   ├── fonts/              Vendored Inter / Space Grotesk / JetBrains Mono (.woff2, OFL) — see "Typography"
+│   └── icons/tabler/       Vendored Tabler Icons (.svg, MIT) — see "Slide manifest schema"
 ├── output/                 Generated, gitignored — carousel.html/.pdf, slide-NN.png per slug
 ├── package.json            Deps: playwright, mermaid, shiki, zod, @typesafe-ai/sdk
 └── CLAUDE.md               This file
@@ -207,17 +210,49 @@ alongside `carousel.html`, ready to paste into LinkedIn's post composer.
 Slide types and their fields, all in `templates/carousel.mjs`'s
 `RENDERERS` map:
 
-- **`hook`** — `eyebrow?`, `headline`, `sub?`. Opening slide.
-- **`diagram`** — `heading?`, `mermaid` (Mermaid diagram source, any
-  supported diagram type), `mermaidTheme?` (defaults `'base'`, themed to
-  the palette below in `scripts/mermaid.mjs`).
+- **`hook`** — `icon?`, `eyebrow?`, `headline`, `sub?`. Opening slide.
+- **`diagram`** — `icon?`, `heading?`, `mermaid` (Mermaid diagram source,
+  any supported diagram type), `mermaidTheme?` (defaults `'base'`, themed
+  to the palette below in `scripts/mermaid.mjs`).
 - **`code`** — `heading?`, `lang` (any Shiki/TextMate grammar id, e.g.
   `typescript`, `python`, `bash`), `code`, `shikiTheme?` (defaults
-  `github-dark-default`).
-- **`stat`** — `value` (big gradient number/short string), `label`,
-  `context?` (supporting sentence).
-- **`list`** — `heading?`, `items` (string array, auto-numbered).
-- **`cta`** — `headline`, `sub?`. Closing slide.
+  `github-dark-default`). No `icon` — a code slide's content is the visual.
+- **`stat`** — `icon?`, `value` (big gradient number/short string), `label`,
+  `context?` (supporting sentence), `compare?` (exactly 2
+  `{label, value: 0-100, highlight?}` rows — renders as a labeled
+  before/after bar chart under the stat instead of leaving the number
+  alone on the slide; `value` is relative bar length, not a literal
+  percentage, so word it into the `label` if it needs to read as one, e.g.
+  `"Speculative decoding — ~3x throughput"`).
+- **`list`** — `heading?`, `items` (array; each item is either a plain
+  string, rendered with an auto-numbered badge same as before, or
+  `{icon?, text}` for a per-item icon badge instead of a number — mixing
+  both forms in one list is fine).
+- **`cta`** — `icon?`, `headline`, `sub?`. Closing slide.
+
+`icon` fields take a name from `assets/icons/tabler/*.svg` (vendored Tabler
+Icons, MIT — outline style, `stroke="currentColor"` so it recolors via CSS;
+see `scripts/icons.mjs`). `scripts/manifest-schema.mjs` validates every
+`icon`/list-item-`icon` value against the actual vendored file set at
+schema-definition time (`readdirSync` on that directory), so referencing an
+icon that was never vendored fails manifest validation with the full list
+of valid names — the same "fail fast with a clear message" guardrail
+philosophy as the rest of this file, not a separate concern.
+
+**Vendoring a new icon**: this repo doesn't keep `@tabler/icons` as a
+dependency — same pattern as fonts (`npm install --no-save @tabler/icons`,
+copy the specific `icons/outline/<name>.svg` files needed into
+`assets/icons/tabler/`, `npm uninstall`). `assets/icons/tabler/LICENSE-MIT.txt`
+already covers the whole set; no per-icon attribution needed.
+
+**Icons are optional on every slide type that has them for a reason**: a
+slide with no `icon` field renders exactly as it did before this field
+existed (no badge, no reserved space) — this keeps `content/example-rag-guardrails.json`
+valid without changes and means a post doesn't have to hunt for a
+plausible icon for every single slide. Use one where it adds real
+information (which failure mode, which metric), not as decoration on every
+slide reflexively — a badge on a slide with nothing to differentiate reads
+as noise, not polish.
 
 Adding a new slide type: add a `render<Type>(slide)` function and a CSS
 block to `templates/carousel.mjs`, register it in `RENDERERS`, and (if it

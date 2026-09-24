@@ -1,9 +1,12 @@
 // Builds the self-contained carousel HTML document from an already-hydrated
 // slide list (Mermaid diagrams pre-rendered to SVG strings, code pre-
-// highlighted to Shiki HTML — see scripts/build.mjs). This module does no
-// I/O and is a pure string template, mirroring video-generator's
-// build.mjs::buildHtml() pattern but emitting CSS-paginated <section class="slide">
-// elements instead of a __seek()-scrubbed timeline.
+// highlighted to Shiki HTML — see scripts/build.mjs). Aside from reading
+// vendored icon SVGs (see scripts/icons.mjs's own comment on why that's
+// fine), this module does no I/O and is a pure string template, mirroring
+// video-generator's build.mjs::buildHtml() pattern but emitting
+// CSS-paginated <section class="slide"> elements instead of a
+// __seek()-scrubbed timeline.
+import { icon } from '../scripts/icons.mjs';
 
 const PAGE_W = 1080;
 const PAGE_H = 1350;
@@ -196,14 +199,60 @@ function baseStyles() {
 
     .list-items { list-style: none; margin: 0; padding: 0; flex: 1; }
     .list-items li {
-      display: flex; gap: 20px; align-items: flex-start;
-      font-size: 32px; line-height: 1.4; padding: 18px 0;
+      display: flex; gap: 24px; align-items: center;
+      font-size: 32px; line-height: 1.4; padding: 22px 0;
       border-bottom: 1px solid var(--border);
     }
     .list-items li:last-child { border-bottom: none; }
     .list-index {
       font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 26px;
-      color: var(--accent); flex: none; padding-top: 4px;
+      color: var(--accent); flex: none; width: 52px; text-align: center;
+    }
+
+    /* ---- icon badges (assets/icons/tabler/*.svg via scripts/icons.mjs) ---- */
+    .icon-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 92px; height: 92px; border-radius: 24px; flex: none;
+      background: linear-gradient(135deg, rgba(63,208,201,0.20), rgba(108,139,255,0.12));
+      border: 1px solid var(--border);
+      color: var(--accent);
+      box-shadow: 0 10px 28px rgba(63,208,201,0.18);
+      margin-bottom: 32px;
+    }
+    .icon-badge svg { width: 46px; height: 46px; stroke-width: 1.75; }
+    .icon-badge-sm {
+      width: 56px; height: 56px; border-radius: 16px; margin-bottom: 0;
+      box-shadow: 0 6px 16px rgba(63,208,201,0.15);
+    }
+    .icon-badge-sm svg { width: 28px; height: 28px; }
+    .list-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 52px; height: 52px; border-radius: 14px; flex: none;
+      background: rgba(63,208,201,0.12); border: 1px solid var(--border);
+      color: var(--accent);
+    }
+    .list-icon svg { width: 26px; height: 26px; stroke-width: 1.75; }
+
+    .heading-row { display: flex; align-items: center; gap: 22px; margin-bottom: 28px; }
+    .heading-row .heading { margin: 0; }
+
+    /* ---- stat comparison bars — an optional visual instead of a number
+       floating alone; see the "compare" field on a stat slide. ---- */
+    .compare-chart { margin-top: 44px; }
+    .compare-row { margin-bottom: 26px; }
+    .compare-row:last-child { margin-bottom: 0; }
+    .compare-row-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 24px;
+      color: var(--muted); margin: 0 0 10px;
+    }
+    .compare-track {
+      height: 30px; border-radius: 15px; overflow: hidden;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    }
+    .compare-fill { height: 100%; border-radius: 15px; background: rgba(147,161,187,0.4); }
+    .compare-fill.highlight {
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      box-shadow: 0 0 18px rgba(63,208,201,0.35);
     }
   `;
 }
@@ -227,16 +276,23 @@ function footer(author, handle) {
 function renderHook(slide) {
   return `
     <div class="safe">
+      ${slide.icon ? `<div class="icon-badge">${icon(slide.icon)}</div>` : ''}
       ${slide.eyebrow ? `<p class="eyebrow">${esc(slide.eyebrow)}</p>` : ''}
       <h1 class="headline">${esc(slide.headline)}</h1>
       ${slide.sub ? `<p class="sub">${esc(slide.sub)}</p>` : ''}
     </div>`;
 }
 
+function renderHeadingRow(slide) {
+  if (!slide.heading) return '';
+  const badge = slide.icon ? `<div class="icon-badge icon-badge-sm">${icon(slide.icon)}</div>` : '';
+  return `<div class="heading-row">${badge}<h2 class="heading">${esc(slide.heading)}</h2></div>`;
+}
+
 function renderDiagram(slide) {
   return `
     <div class="safe">
-      ${slide.heading ? `<h2 class="heading">${esc(slide.heading)}</h2>` : ''}
+      ${renderHeadingRow(slide)}
       <div class="diagram-wrap card">${slide.diagramSvg || ''}</div>
     </div>`;
 }
@@ -249,18 +305,42 @@ function renderCode(slide) {
     </div>`;
 }
 
+function renderCompareChart(compare) {
+  if (!compare) return '';
+  const rows = compare
+    .map(
+      (row) => `
+      <div class="compare-row">
+        <p class="compare-row-label">${esc(row.label)}</p>
+        <div class="compare-track"><div class="compare-fill${row.highlight ? ' highlight' : ''}" style="width:${row.value}%"></div></div>
+      </div>`
+    )
+    .join('');
+  return `<div class="compare-chart">${rows}</div>`;
+}
+
 function renderStat(slide) {
   return `
     <div class="safe">
+      ${slide.icon ? `<div class="icon-badge">${icon(slide.icon)}</div>` : ''}
       <p class="stat-value">${esc(slide.value)}</p>
       <p class="stat-label">${esc(slide.label)}</p>
       ${slide.context ? `<p class="stat-context">${esc(slide.context)}</p>` : ''}
+      ${renderCompareChart(slide.compare)}
     </div>`;
 }
 
 function renderList(slide) {
   const items = (slide.items || [])
-    .map((item, i) => `<li><span class="list-index">${String(i + 1).padStart(2, '0')}</span><span>${esc(item)}</span></li>`)
+    .map((item, i) => {
+      const isRich = typeof item === 'object' && item !== null;
+      const text = isRich ? item.text : item;
+      const marker =
+        isRich && item.icon
+          ? `<span class="list-icon">${icon(item.icon)}</span>`
+          : `<span class="list-index">${String(i + 1).padStart(2, '0')}</span>`;
+      return `<li>${marker}<span>${esc(text)}</span></li>`;
+    })
     .join('');
   return `
     <div class="safe">
@@ -272,6 +352,7 @@ function renderList(slide) {
 function renderCta(slide) {
   return `
     <div class="safe">
+      ${slide.icon ? `<div class="icon-badge">${icon(slide.icon)}</div>` : ''}
       <h1 class="headline">${esc(slide.headline)}</h1>
       ${slide.sub ? `<p class="sub">${esc(slide.sub)}</p>` : ''}
     </div>`;

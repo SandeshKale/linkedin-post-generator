@@ -6,12 +6,14 @@
   "slides": [
     {
       "type": "hook",
+      "icon": "bolt",
       "eyebrow": "Inference Systems",
       "headline": "Autoregressive decoding is memory-bound, not compute-bound.",
       "sub": "Speculative decoding fixes the math — and provably never changes a single token the model would have said."
     },
     {
       "type": "diagram",
+      "icon": "git-branch",
       "heading": "Draft, Then Verify — In One Pass",
       "mermaid": "graph TD\n  A[Current prefix] --> B[Draft model guesses next D tokens fast]\n  B --> C[Target model scores all D+1 positions in ONE forward pass]\n  C --> D{Rejection-sample each draft token}\n  D -- Accepted --> E[Keep token, advance prefix]\n  D -- Rejected --> F[Resample correct token from residual distribution]\n  E --> A\n  F --> A"
     },
@@ -23,21 +25,27 @@
     },
     {
       "type": "stat",
+      "icon": "gauge",
       "value": "~3x",
       "label": "Faster, zero quality loss",
-      "context": "Google Research's original result: a 60M-parameter T5-small draft model verified against an 11B-parameter T5-XXL target hit ~3x faster inference on translation and summarization — with outputs mathematically guaranteed identical to running the 11B model alone."
+      "context": "Google Research's original result: a 60M-parameter T5-small draft model verified against an 11B-parameter T5-XXL target hit ~3x faster inference on translation and summarization — with outputs mathematically guaranteed identical to running the 11B model alone.",
+      "compare": [
+        { "label": "Plain autoregressive decoding — 1x baseline", "value": 33 },
+        { "label": "Speculative decoding — ~3x throughput", "value": 100, "highlight": true }
+      ]
     },
     {
       "type": "list",
       "heading": "Where This Breaks Without Care",
       "items": [
-        "Draft and target must share a tokenizer — rejection sampling operates token-by-token with no fallback for mismatched vocabularies.",
-        "A weak draft model tanks the acceptance rate: you pay for two forward passes and gain nothing over plain decoding.",
-        "A separate draft model means a second KV cache to manage — EAGLE-style self-drafting avoids this by reusing the target model's own hidden states instead of running an independent model."
+        { "icon": "language", "text": "Draft and target must share a tokenizer — rejection sampling operates token-by-token with no fallback for mismatched vocabularies." },
+        { "icon": "trending-down", "text": "A weak draft model tanks the acceptance rate: you pay for two forward passes and gain nothing over plain decoding." },
+        { "icon": "database", "text": "A separate draft model means a second KV cache to manage — EAGLE-style self-drafting avoids this by reusing the target model's own hidden states instead of running an independent model." }
       ]
     },
     {
       "type": "cta",
+      "icon": "rocket",
       "headline": "Follow Sandesh Kale",
       "sub": "for more deterministic AI systems breakdowns — the math behind why your inference stack is fast or slow."
     }
