@@ -1,0 +1,63 @@
+{
+  "slug": "jev-claude-code",
+  "title": "How Jev Integration Makes Your Claude Code Pipeline Powerful",
+  "author": "Sandesh Kale",
+  "handle": "GenAI Solutions Architect",
+  "slides": [
+    {
+      "type": "hook",
+      "icon": "robot",
+      "eyebrow": "AGENTIC PIPELINES",
+      "headline": "Claude Code didn't get smarter when I added more prompts.",
+      "sub": "It got smarter when I added a model whose only job is to say no.",
+      "alt": "Dark slide with a robot icon badge and eyebrow label 'AGENTIC PIPELINES'. Large headline: Claude Code didn't get smarter when I added more prompts. Subheading: It got smarter when I added a model whose only job is to say no."
+    },
+    {
+      "type": "diagram",
+      "icon": "hierarchy",
+      "heading": "Where the judgment layer actually sits",
+      "engine": "mermaid",
+      "mermaid": "flowchart TD\n  A[manifest.json] --> B{quality-gate.mjs\\nJev judgment}\n  B -->|OK, confidence >= 0.6| C[build.mjs]\n  B -->|FLAG or REVIEW| D[Fix content first]\n  C --> E[render.mjs]\n  E --> F[carousel.pdf]",
+      "alt": "Flowchart: manifest.json feeds into quality-gate.mjs, labeled Jev judgment, which is a decision diamond. If OK with confidence at or above 0.6, it flows to build.mjs then render.mjs then carousel.pdf. If FLAGged or marked REVIEW, it routes instead to a 'fix content first' box, a dead end that never reaches build.mjs."
+    },
+    {
+      "type": "code",
+      "heading": "The confidence gate, in code",
+      "lang": "javascript",
+      "code": "// Score answers carry confidence directly.\n// Noul (yes/no) answers derive it from\n// distance-from-0.5 — near 0.5 means unsure.\nconst FLOOR = 0.6;\n\nfunction verdict(row) {\n  if (row.confidence < FLOOR) return 'REVIEW';\n  return row.bad ? 'FLAG' : 'OK';\n}\n\n// hook_strength      -> Score, 4 levels\n// cta_is_specific     -> Noul\n// jargon_risk          -> Noul, all slides\n// diagram_readability -> Score, per diagram\n// One systemOne() call. Every question in parallel.",
+      "alt": "Code slide showing a JavaScript snippet: a FLOOR constant of 0.6, a verdict function that returns REVIEW when confidence is below the floor and otherwise FLAG or OK, followed by comments listing four Jev questions — hook_strength as a 4-level Score, cta_is_specific and jargon_risk as Noul, and diagram_readability as a per-diagram Score — all run in one systemOne call."
+    },
+    {
+      "type": "stat",
+      "icon": "chart-bar",
+      "value": "99%",
+      "label": "Confidence Jev gave for switching this repo to bun",
+      "context": "Not a blog-post ranking — real cold and warm install times, measured in this exact sandbox, fed to Jev as a structured choice question.",
+      "compare": [
+        { "label": "npm — cold install, 7.2s", "value": 100 },
+        { "label": "bun — cold install, 3.43s (0.26s warm repeat)", "value": 48, "highlight": true }
+      ],
+      "alt": "Stat slide with a large gradient '99%' figure, labeled as the confidence Jev gave for switching this repo's package manager to bun. Below it, a two-row horizontal bar chart compares npm's 7.2 second cold install against bun's 3.43 second cold install (highlighted, noted as 0.26 seconds on a warm repeat install), with bun's bar roughly half the length of npm's."
+    },
+    {
+      "type": "list",
+      "heading": "Four questions, one Jev call, every manifest",
+      "items": [
+        { "icon": "target", "text": "hook_strength — will this actually stop the scroll?" },
+        { "icon": "message-circle", "text": "cta_is_specific — or is it generic follow-me boilerplate?" },
+        { "icon": "alert-triangle", "text": "jargon_risk — undefined acronyms your audience won't know?" },
+        { "icon": "chart-dots", "text": "diagram_readability — legible at feed-thumbnail size, not full-screen?" }
+      ],
+      "alt": "List slide titled 'Four questions, one Jev call, every manifest' with four icon-badged rows: a target icon for hook strength, a message icon for CTA specificity, a warning triangle for jargon risk, and a dotted chart icon for diagram readability."
+    },
+    {
+      "type": "cta",
+      "icon": "rocket",
+      "headline": "Claude Code builds. Jev judges.",
+      "sub": "Together they ship things I'd actually trust without re-reading every line myself.",
+      "alt": "Closing slide with a rocket icon badge. Large headline: Claude Code builds. Jev judges. Subheading: Together they ship things I'd actually trust without re-reading every line myself."
+    }
+  ],
+  "caption": "Claude Code didn't get smarter when I added more prompts. It got smarter when I added a model whose only job is to say no.\n\n💾 Save this if you're building an agentic pipeline and keep wondering how to stop shipping the first draft.\n\n⚡ The problem\nClaude Code is great at producing output fast. It has no built-in opinion on whether that output is actually good — a weak hook, a generic CTA, jargon your audience won't recognize. A schema can catch malformed JSON. It can't catch a boring headline.\n\n🎲 The fix: a judgment layer, kept separate\nI wired Jev (TypeSafe AI) in as its own pre-build stage in my LinkedIn carousel pipeline — never inside the deterministic build/render path, the same way you'd run a linter before a build, not inside one. One systemOne() call scores hook strength, CTA specificity, jargon risk and diagram readability in parallel, and every answer resolves to OK / FLAG / REVIEW off the model's own confidence, never taken as ground truth blindly.\n\n📊 It's not just content\nI used the exact same pattern to pick a package manager. Real cold and warm install benchmarks for npm, pnpm, bun and yarn, measured in my own sandbox, fed to Jev as a structured choice question. Result: bun, 99% confidence — and the reasoning was fully auditable, not a black box.\n\n⚠️ The catch that makes it trustworthy\nConfidence under 0.6 always resolves to REVIEW, even when the answer looks fine either way. A judgment model that's allowed to sound certain about everything is worse than having no judgment model at all.\n\nFollow for more on building agentic pipelines that check their own work before you have to.",
+  "hashtags": ["ClaudeCode", "AgenticAI", "TypeSafeAI", "LLMOps", "BuildInPublic", "GenAI", "SoftwareArchitecture"]
+}
