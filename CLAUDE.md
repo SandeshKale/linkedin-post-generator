@@ -87,15 +87,27 @@ bun scripts/gif.mjs output/<slug>/flow-scene.html output/<slug>/flow.gif [--dura
   native deps — installs in well under a second on this sandbox's `bun`).
 
 **Nodes carry real vendored art, not just labeled boxes** — a node's
-`icon` (Tabler, `scripts/icons.mjs::icon()`) and/or `brand` (a real
-product mark, `::brandIcon()`, `assets/icons/simple-icons/*.svg`, CC0, no
-attribution required) render as actual nested `<svg>` content inside the
-diagram's own `<svg>`, not decoration bolted on after the fact. Use
-`brand` only where it's literally true (a `.mjs` node really is a
-Node.js/JavaScript file — that's why those nodes carry the real Node.js
-mark, dim, bottom-right corner), never as generic flair; a `brandBadge` in
-the scene header works the same way (e.g. the real Anthropic mark on a
-post that's literally about Claude Code, not a generic robot icon).
+`icon` (Tabler, `scripts/icons.mjs::icon()`) plus at most one of `brand`
+(a flat single-color mark, `::brandIcon()`, `assets/icons/simple-icons/
+*.svg`, CC0) or `logo` (a real full-color product logo, `::logoIcon()`,
+`assets/logos/gilbarbara/*.svg`, CC0 — for developer tools simple-icons
+doesn't carry, e.g. Bun, Playwright) render as actual nested `<svg>`
+content inside the diagram's own `<svg>`, not decoration bolted on after
+the fact. `brand`/`logo` get forced dim (`opacity`) so they read as a
+small corner credit, not competing with the node's own primary icon.
+
+Use `brand`/`logo` only where it's literally true of that specific node —
+never generic flair. This post's own flow manifest
+(`content/jev-claude-code.flow.json`) is the worked example: the
+`quality-gate.mjs`/`build.mjs` nodes carry the real Bun logo because this
+repo's scripts genuinely run as `bun scripts/*.mjs` (see "Runtime &
+package manager"), and `render.mjs` carries the real Playwright logo
+because that stage's entire job is driving Playwright/Chromium — a
+generic Node.js mark on `render.mjs` would've been *less* accurate, not
+just less specific, once the repo migrated off plain `node`. A
+`brandBadge` in the scene header works the same way (the real Anthropic
+mark on a post that's literally about Claude Code, not a generic robot
+icon).
 
 **Two more real gotchas hit wiring vendored icons into an SVG-in-SVG
 scene, both again only visible by rendering and looking:**
@@ -244,7 +256,7 @@ linkedin-post-generator/
 │   ├── d2.mjs              D2 diagram engine (WASM, no browser) → static <svg> string — see "Diagram engines"
 │   ├── shiki.mjs           Code string → syntax-highlighted <pre> HTML, pre-render helper
 │   ├── manifest-schema.mjs Zod schema + parseManifest() — the JSON-shape guardrail
-│   ├── icons.mjs           Vendored Tabler icon loader (assets/icons/tabler/*.svg)
+│   ├── icons.mjs           Vendored icon/logo loaders: icon() Tabler, brandIcon() simple-icons, logoIcon() gilbarbara
 │   ├── jev.mjs             Jev/TypeSafe AI client wrapper (JEV_API_KEY → TypeSafeClient)
 │   ├── quality-gate.mjs    Manifest → Jev content-quality judgment (advisory or --strict), pre-build only
 │   ├── build-flow-gif.mjs  Flow manifest → animated-scene HTML — see "Animated GIF posts"

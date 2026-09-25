@@ -14,8 +14,10 @@ import { dirname, join } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ICONS_DIR = join(__dirname, '..', 'assets', 'icons', 'tabler');
 const BRAND_ICONS_DIR = join(__dirname, '..', 'assets', 'icons', 'simple-icons');
+const LOGOS_DIR = join(__dirname, '..', 'assets', 'logos', 'gilbarbara');
 const cache = new Map();
 const brandCache = new Map();
+const logoCache = new Map();
 
 /**
  * @param {string} name - file name (without .svg) under assets/icons/tabler/
@@ -45,4 +47,26 @@ export function brandIcon(name) {
     brandCache.set(name, readFileSync(join(BRAND_ICONS_DIR, `${name}.svg`), 'utf8'));
   }
   return brandCache.get(name);
+}
+
+/**
+ * Vendored real, full-color product logos (assets/logos/gilbarbara/*.svg,
+ * CC0 — see that directory's own LICENSE, no attribution required),
+ * merged into this repo from video-generator's asset library (see
+ * CLAUDE.md "Asset library"). Unlike `brandIcon()`'s simple-icons set
+ * (single flat brand color, meant to be recolored via `fill:
+ * currentColor`), these ship as multi-path, multi-color artwork with
+ * each path's own real brand-accurate `fill` already set — never
+ * override their color, that's the actual point of reaching for this set
+ * instead of a monochrome brand mark. Covers developer-tool logos
+ * simple-icons doesn't have (this repo vendors `bun.svg` and
+ * `playwright.svg` from here for exactly that reason).
+ * @param {string} name - file name (without .svg) under assets/logos/gilbarbara/
+ * @returns {string} raw <svg>...</svg> markup, full original colors
+ */
+export function logoIcon(name) {
+  if (!logoCache.has(name)) {
+    logoCache.set(name, readFileSync(join(LOGOS_DIR, `${name}.svg`), 'utf8'));
+  }
+  return logoCache.get(name);
 }

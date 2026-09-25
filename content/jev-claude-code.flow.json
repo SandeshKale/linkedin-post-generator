@@ -5,10 +5,10 @@
   "brandBadgeLabel": "Claude Code",
   "nodes": [
     { "id": "manifest", "x": 80, "y": 210, "w": 520, "h": 90, "label": "jev-claude-code.json", "icon": "file-text" },
-    { "id": "gate", "x": 80, "y": 396, "w": 520, "h": 90, "label": "quality-gate.mjs", "icon": "shield-check", "brand": "nodedotjs" },
+    { "id": "gate", "x": 80, "y": 396, "w": 520, "h": 90, "label": "quality-gate.mjs", "icon": "shield-check", "logo": "bun" },
     { "id": "jev", "x": 80, "y": 582, "w": 520, "h": 90, "label": "Jev systemOne()", "icon": "brain" },
-    { "id": "build", "x": 80, "y": 768, "w": 520, "h": 90, "label": "build.mjs", "icon": "settings-automation", "brand": "nodedotjs" },
-    { "id": "render", "x": 80, "y": 954, "w": 520, "h": 90, "label": "render.mjs", "icon": "photo", "brand": "nodedotjs" },
+    { "id": "build", "x": 80, "y": 768, "w": 520, "h": 90, "label": "build.mjs", "icon": "settings-automation", "logo": "bun" },
+    { "id": "render", "x": 80, "y": 954, "w": 520, "h": 90, "label": "render.mjs", "icon": "photo", "logo": "playwright" },
     { "id": "pdf", "x": 80, "y": 1140, "w": 520, "h": 90, "label": "carousel.pdf", "icon": "stack-2" }
   ],
   "branchFrom": "jev",

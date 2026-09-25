@@ -12,12 +12,15 @@
 // deterministic screen recording.
 //
 // Nodes/chips are real vendored art, not just colored boxes: `icon` pulls
-// a Tabler outline icon (via scripts/icons.mjs::icon()) and `brand` pulls
-// a real product/brand mark (::brandIcon(), assets/icons/simple-icons,
-// CC0). Both come back as full `<svg>...</svg>` strings; nested `<svg>`
-// inside a parent `<svg>` is valid per spec (it establishes its own
-// viewport), so they're dropped in directly rather than re-parsed.
-import { icon, brandIcon } from '../scripts/icons.mjs';
+// a Tabler outline icon (via scripts/icons.mjs::icon()), `brand` pulls a
+// flat, single-color brand mark (::brandIcon(), assets/icons/simple-icons,
+// CC0), and `logo` pulls a real full-color product logo (::logoIcon(),
+// assets/logos/gilbarbara, CC0 — used for developer-tool logos
+// simple-icons doesn't carry, e.g. Bun, Playwright). All three come back
+// as full `<svg>...</svg>` strings; nested `<svg>` inside a parent `<svg>`
+// is valid per spec (it establishes its own viewport), so they're dropped
+// in directly rather than re-parsed.
+import { icon, brandIcon, logoIcon } from '../scripts/icons.mjs';
 
 const PAGE_W = 1080;
 const PAGE_H = 1350;
@@ -63,14 +66,18 @@ function iconAt(svg, x, y, size, colorVar) {
 /**
  * @param {object} opts
  * @param {string} opts.title
- * @param {{id:string, x:number, y:number, w:number, h:number, label:string, icon?:string, brand?:string}[]} opts.nodes
+ * @param {{id:string, x:number, y:number, w:number, h:number, label:string, icon?:string, brand?:string, logo?:string}[]} opts.nodes
  *   Main-path nodes, in travel order — the traveling dot visits them in
  *   array order, evenly spaced across the first 80% of `loopMs`. `icon` is
  *   a Tabler name (assets/icons/tabler/), rendered as a left-aligned badge
- *   inside the node; `brand` is a real product mark (assets/icons/simple-
- *   icons/) shown small and dim in the node's bottom-right corner — use it
- *   only where it's factually true (e.g. a `.mjs` node really is Node.js/
- *   JavaScript), never as decoration.
+ *   inside the node. `brand` (assets/icons/simple-icons/, flat single
+ *   color) or `logo` (assets/logos/gilbarbara/, real full color — use this
+ *   one when the exact tool has a distinctive multi-color mark, e.g. Bun
+ *   or Playwright) render small in the node's bottom-right corner — use
+ *   either only where it's factually true of that node (e.g. this repo's
+ *   `.mjs` scripts really do run under `bun`, and `render.mjs` really does
+ *   drive Playwright), never as decoration. At most one of `brand`/`logo`
+ *   per node.
  * @param {{x:number, y:number, w:number, h:number, label:string, icon?:string}} [opts.branch]
  *   One optional off-path node (e.g. the "rejected" branch), connected from
  *   `branchFrom` with a static, muted, differently-colored dashed line —
@@ -152,6 +159,7 @@ export function buildFlowGifHtml({
   const ICON_SIZE = 30;
   const ICON_PAD = 20;
   const BRAND_SIZE = 20;
+  const LOGO_SIZE = 26;
 
   const nodeEls = nodes
     .map((n) => {
@@ -161,6 +169,10 @@ export function buildFlowGifHtml({
       const iconEl = hasIcon
         ? iconAt(icon(n.icon), ICON_PAD, n.h / 2 - ICON_SIZE / 2, ICON_SIZE, 'var(--accent)')
         : '';
+      // `brand` (flat, needs currentColor) and `logo` (real full color,
+      // never recolored) get different wrapper classes — see their CSS
+      // below — but the same bottom-right corner slot; a node uses at
+      // most one, so no layout conflict.
       const brandEl = n.brand
         ? `<g class="brand-mark">${iconAt(
             brandIcon(n.brand),
@@ -168,6 +180,14 @@ export function buildFlowGifHtml({
             n.h - BRAND_SIZE - 14,
             BRAND_SIZE,
             'var(--muted)'
+          )}</g>`
+        : n.logo
+        ? `<g class="logo-mark">${iconAt(
+            logoIcon(n.logo),
+            n.w - LOGO_SIZE - 14,
+            n.h - LOGO_SIZE - 12,
+            LOGO_SIZE,
+            'currentColor'
           )}</g>`
         : '';
       return `
@@ -341,6 +361,10 @@ export function buildFlowGifHtml({
   }
   .node .brand-mark { opacity: 0.5; }
   .node .brand-mark svg { fill: currentColor; }
+  /* Real, full-color product logos (Bun, Playwright) keep their own
+     per-path brand colors — no fill override, just a slight dim so they
+     don't outweigh the node's own icon/label as the primary read. */
+  .node .logo-mark { opacity: 0.85; }
   ${nodePulseKeyframes}
 
   .chip rect { fill: rgba(63, 208, 201, 0.12); stroke: var(--accent); stroke-width: 1.5; }
