@@ -1,0 +1,21 @@
+{
+  "title": "Behind the Scenes: How Jev Judges My Claude Code Pipeline",
+  "loopMs": 4200,
+  "nodes": [
+    { "id": "manifest", "x": 80, "y": 210, "w": 520, "h": 90, "label": "jev-claude-code.json" },
+    { "id": "gate", "x": 80, "y": 396, "w": 520, "h": 90, "label": "quality-gate.mjs" },
+    { "id": "jev", "x": 80, "y": 582, "w": 520, "h": 90, "label": "Jev systemOne()" },
+    { "id": "build", "x": 80, "y": 768, "w": 520, "h": 90, "label": "build.mjs" },
+    { "id": "render", "x": 80, "y": 954, "w": 520, "h": 90, "label": "render.mjs" },
+    { "id": "pdf", "x": 80, "y": 1140, "w": 520, "h": 90, "label": "carousel.pdf" }
+  ],
+  "branchFrom": "jev",
+  "branch": { "x": 680, "y": 1140, "w": 340, "h": 90, "label": "FLAG/REVIEW → fix first" },
+  "chipsAt": "jev",
+  "chips": [
+    { "label": "hook_strength" },
+    { "label": "cta_is_specific" },
+    { "label": "jargon_risk" },
+    { "label": "diagram_readability" }
+  ]
+}

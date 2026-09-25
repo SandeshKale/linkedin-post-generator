@@ -50,6 +50,70 @@ bun scripts/build.mjs content/<manifest>.json                    # → output/<s
 bun scripts/render.mjs output/<slug>/carousel.html                # → carousel.pdf + slide-NN.png
 ```
 
+## Animated GIF posts (a deliberate exception, not a mode of render.mjs)
+
+Some gold-standard reference posts (reverse-engineered from real
+high-performing LinkedIn posts — see the UPI/₹18.41T post analysis) use a
+single animated GIF instead of a carousel: a flow diagram with genuine
+motion — marching-dash connectors, a traveling "request" dot, per-node
+glow pulses — not a static image. That's the literal opposite of this
+repo's core render contract above, so it does **not** live inside
+`render.mjs` or get bolted on as an "animation mode." It's a wholly
+separate sibling pipeline:
+
+```bash
+bun scripts/build-flow-gif.mjs content/<slug>.flow.json   # → output/<slug>/flow-scene.html
+bun scripts/gif.mjs output/<slug>/flow-scene.html output/<slug>/flow.gif [--duration=4000] [--fps=20]
+```
+
+- **`templates/flow-gif.mjs`** (`buildFlowGifHtml()`) builds a standalone
+  HTML "scene": real CSS `@keyframes` animations (dashed-line marching
+  ants, a `circle` moving via `offset-path`/`offset-distance`, per-node
+  `box-shadow` pulses timed to when the dot arrives), reusing the same
+  Blueprint theme tokens and vendored fonts as `templates/carousel.mjs` so
+  a GIF post and a carousel post still read as the same brand.
+- **`scripts/gif.mjs`** is the actual exporter, and its determinism trick
+  is the same spirit as `video-generator`'s `window.__seek(t)` contract,
+  just applied to the browser's own animation engine instead of bespoke
+  page JS: every `Animation` on the page is paused once via the Web
+  Animations API, then `animation.currentTime` is set to each sample
+  instant in turn and a screenshot is taken — never real wall-clock
+  playback, which would make the output non-reproducible. Setting
+  `currentTime` past one iteration's own duration on an `infinite`
+  animation resolves correctly via modulo, so a single shared timeline
+  can drive several animations with different periods (e.g. the marching
+  dashes loop faster than the dot's own travel) without extra bookkeeping.
+- Frames are decoded with `pngjs` and encoded with `gifenc` (pure JS, no
+  native deps — installs in well under a second on this sandbox's `bun`).
+
+**Two real gotchas hit while building this, both found by actually
+measuring pixel output, not by reading the generated markup or eyeballing
+a couple of preview crops** (see "Verify visually" in "Git / workflow
+conventions" — this applies just as hard to a GIF as to a carousel PNG):
+
+1. **A CSS `transform` animation completely replaces an SVG element's
+   `transform` attribute instead of composing with it.** Positioning a
+   node/chip via `transform="translate(x,y)"` and *also* animating CSS
+   `transform` (e.g. a fade-in's `translateY`/`scale`) on the same
+   element collapses it back to the SVG's origin the instant the
+   animation applies — every chip landed on top of each other near
+   (0,0). Fix: position on an outer, unanimated `<g>`; only animate
+   `transform` on a nested inner `<g>`.
+2. **An `<svg>` left in normal document flow after a preceding element
+   (here, an `<h1>` title) gets pushed down by that element's flow
+   height**, silently shifting every coordinate inside it and clipping
+   whatever falls off the bottom of a fixed-height, `overflow: hidden`
+   container — no error, just a missing last node. Fix: `position:
+   absolute; top: 0; left: 0` on the `svg`, same "layered, not flowed"
+   pattern `templates/carousel.mjs` already uses for `.bg-dots`/`.bg-glow`.
+
+Both were caught by measuring actual rendered pixel positions (DOM
+`getBoundingClientRect()` during debugging, then tracking the dot's
+measured y-coordinate across every decoded GIF frame) rather than trusting
+a quick visual skim — a small preview crop of a 2160px-tall frame is easy
+to misread by eye, especially near a node boundary; a numeric position
+trace across all frames is not.
+
 ## Content quality gate (Jev)
 
 `scripts/quality-gate.mjs` runs a manifest's content past [Jev](https://typesafe.ai)
@@ -145,12 +209,16 @@ linkedin-post-generator/
 │   ├── manifest-schema.mjs Zod schema + parseManifest() — the JSON-shape guardrail
 │   ├── icons.mjs           Vendored Tabler icon loader (assets/icons/tabler/*.svg)
 │   ├── jev.mjs             Jev/TypeSafe AI client wrapper (JEV_API_KEY → TypeSafeClient)
-│   └── quality-gate.mjs    Manifest → Jev content-quality judgment (advisory or --strict), pre-build only
+│   ├── quality-gate.mjs    Manifest → Jev content-quality judgment (advisory or --strict), pre-build only
+│   ├── build-flow-gif.mjs  Flow manifest → animated-scene HTML — see "Animated GIF posts"
+│   └── gif.mjs             Animated scene HTML → looping .gif, via deterministic Web Animations scrubbing
 ├── templates/
-│   └── carousel.mjs        buildHtml({title, author, handle, slides}) — CSS + per-slide-type markup
+│   ├── carousel.mjs        buildHtml({title, author, handle, slides}) — CSS + per-slide-type markup
+│   └── flow-gif.mjs        buildFlowGifHtml({nodes, edges, ...}) — animated flow-diagram scene markup
 ├── content/
 │   ├── example-rag-guardrails.json   Sample manifest (all 6 slide types, no icons — tests the no-icon path)
-│   └── speculative-decoding.json     Sample manifest using icons + a stat "compare" bar chart
+│   ├── speculative-decoding.json     Sample manifest using icons + a stat "compare" bar chart
+│   └── jev-claude-code.flow.json     Sample animated-GIF flow manifest — see "Animated GIF posts"
 ├── assets/
 │   ├── fonts/              Vendored webfonts (.woff2, OFL) — see "Typography"
 │   ├── icons/              Vendored icon sets incl. tabler/ (.svg) — see "Slide manifest schema"

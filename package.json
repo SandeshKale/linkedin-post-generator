@@ -8,13 +8,17 @@
   "scripts": {
     "build": "bun scripts/build.mjs",
     "render": "bun scripts/render.mjs",
-    "quality-gate": "bun scripts/quality-gate.mjs"
+    "quality-gate": "bun scripts/quality-gate.mjs",
+    "build-flow-gif": "bun scripts/build-flow-gif.mjs",
+    "gif": "bun scripts/gif.mjs"
   },
   "dependencies": {
     "@terrastruct/d2": "^0.1.33",
     "@typesafe-ai/sdk": "^0.6.0",
+    "gifenc": "^1.0.3",
     "mermaid": "^11.4.1",
     "playwright": "^1.56.0",
+    "pngjs": "^7.0.0",
     "shiki": "^1.24.0",
     "zod": "^4.6.5"
   }
