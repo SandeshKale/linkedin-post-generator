@@ -87,14 +87,37 @@ bun scripts/gif.mjs output/<slug>/flow-scene.html output/<slug>/flow.gif [--dura
   native deps — installs in well under a second on this sandbox's `bun`).
 
 **Nodes carry real vendored art, not just labeled boxes** — a node's
-`icon` (Tabler, `scripts/icons.mjs::icon()`) plus at most one of `brand`
-(a flat single-color mark, `::brandIcon()`, `assets/icons/simple-icons/
-*.svg`, CC0) or `logo` (a real full-color product logo, `::logoIcon()`,
-`assets/logos/gilbarbara/*.svg`, CC0 — for developer tools simple-icons
-doesn't carry, e.g. Bun, Playwright) render as actual nested `<svg>`
-content inside the diagram's own `<svg>`, not decoration bolted on after
-the fact. `brand`/`logo` get forced dim (`opacity`) so they read as a
-small corner credit, not competing with the node's own primary icon.
+`icon` (Tabler, `scripts/icons.mjs::icon()`), `brand` (a flat single-color
+mark, `::brandIcon()`, `assets/icons/simple-icons/*.svg`, CC0), and `logo`
+(a real full-color product logo, `::logoIcon()`, `assets/logos/
+gilbarbara/*.svg`, CC0 — for developer tools simple-icons doesn't carry,
+e.g. Bun, Playwright) all render as actual nested `<svg>` content inside
+the diagram's own `<svg>`, not decoration bolted on after the fact.
+
+**`logo` is the node's PRIMARY visual, not a corner accent — this was
+wrong in an earlier version of this file and of the code, caught only by
+holding the actual output next to the real reference post, not by
+re-reading either in isolation.** The initial implementation sized `logo`
+at 20-26px, dimmed to 50-85% opacity, tucked in the node's bottom-right
+corner — a "credit," not content. Compared side by side against the
+reference post's own image (a dense infographic where every bank/app logo
+renders at roughly 80-150px, full color, on its own white badge, plus
+explicit numbered steps), the gap was structural, not cosmetic: the
+reference's logos *are* the diagram, and its steps are numbered because
+the content genuinely is a sequence. Current behavior, matching that: a
+node with `logo` renders it large (46px icon on a 72px white rounded
+badge — white specifically so a multi-color logo stays legible over the
+dark theme regardless of its own palette, the same reason the reference's
+bank marks all sit on white chips rather than directly on its colored
+zones) as the node's leading visual, at full opacity, in the same slot
+`icon` would otherwise occupy — a node never shows both. Every node also
+gets a numbered step badge (a filled circle at its top-left corner,
+`1`-indexed by array order) for the same reason the reference numbers its
+steps: this pipeline genuinely is an ordered sequence, so the number is
+real structure, not decoration (see `artifact-design`'s "structure is
+information" principle — it applies here too, even outside an actual
+Artifact page). `brand` is kept for cases that only warrant a small
+secondary credit, not a primary logo, and stays dim/corner-badge sized.
 
 Use `brand`/`logo` only where it's literally true of that specific node —
 never generic flair. This post's own flow manifest

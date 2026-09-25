@@ -156,23 +156,36 @@ export function buildFlowGifHtml({
     })
     .join('\n');
 
-  const ICON_SIZE = 30;
-  const ICON_PAD = 20;
+  // A real product `logo` is the PRIMARY visual on a node that has one —
+  // large, full color, on its own white badge so it stays legible over
+  // the dark theme regardless of the logo's own palette (the same trick
+  // the reference UPI post uses: every bank mark sits on a white chip,
+  // not directly on the diagram's own background). A plain `icon` (no
+  // logo) is the fallback primary visual, smaller, tinted via
+  // currentColor since Tabler's outline style already reads fine
+  // directly on dark. `brand` stays a small secondary corner credit for
+  // cases that don't warrant the full badge treatment.
+  const LOGO_BADGE = 72;
+  const LOGO_SIZE = 46;
+  const ICON_SIZE = 38;
+  const PAD = 22;
   const BRAND_SIZE = 20;
-  const LOGO_SIZE = 26;
+  const STEP_R = 22;
 
   const nodeEls = nodes
-    .map((n) => {
-      const hasIcon = Boolean(n.icon);
-      const textX = hasIcon ? ICON_PAD * 2 + ICON_SIZE : n.w / 2;
-      const textAnchor = hasIcon ? 'start' : 'middle';
-      const iconEl = hasIcon
-        ? iconAt(icon(n.icon), ICON_PAD, n.h / 2 - ICON_SIZE / 2, ICON_SIZE, 'var(--accent)')
+    .map((n, i) => {
+      const hasLogo = Boolean(n.logo);
+      const hasIcon = Boolean(n.icon) && !hasLogo;
+      const textX = hasLogo ? PAD * 2 + LOGO_BADGE : hasIcon ? PAD * 2 + ICON_SIZE : n.w / 2;
+      const textAnchor = hasLogo || hasIcon ? 'start' : 'middle';
+
+      const logoEl = hasLogo
+        ? `<g class="logo-mark">
+            <rect x="${PAD}" y="${n.h / 2 - LOGO_BADGE / 2}" width="${LOGO_BADGE}" height="${LOGO_BADGE}" rx="16" fill="#fff" />
+            ${iconAt(logoIcon(n.logo), PAD + (LOGO_BADGE - LOGO_SIZE) / 2, n.h / 2 - LOGO_SIZE / 2, LOGO_SIZE, '#111')}
+          </g>`
         : '';
-      // `brand` (flat, needs currentColor) and `logo` (real full color,
-      // never recolored) get different wrapper classes — see their CSS
-      // below — but the same bottom-right corner slot; a node uses at
-      // most one, so no layout conflict.
+      const iconEl = hasIcon ? iconAt(icon(n.icon), PAD, n.h / 2 - ICON_SIZE / 2, ICON_SIZE, 'var(--accent)') : '';
       const brandEl = n.brand
         ? `<g class="brand-mark">${iconAt(
             brandIcon(n.brand),
@@ -181,22 +194,26 @@ export function buildFlowGifHtml({
             BRAND_SIZE,
             'var(--muted)'
           )}</g>`
-        : n.logo
-        ? `<g class="logo-mark">${iconAt(
-            logoIcon(n.logo),
-            n.w - LOGO_SIZE - 14,
-            n.h - LOGO_SIZE - 12,
-            LOGO_SIZE,
-            'currentColor'
-          )}</g>`
         : '';
+      // Numbered step badge, overlapping the top-left corner — this
+      // pipeline genuinely is an ordered sequence, so a literal step
+      // number is real structure, not decoration (see CLAUDE.md
+      // artifact-design's "structure is information" principle, applied
+      // here too even though this diagram isn't an Artifact page).
+      const stepBadge = `
+    <g class="step-badge" transform="translate(${-STEP_R * 0.4}, ${-STEP_R * 0.4})">
+      <circle r="${STEP_R}" />
+      <text text-anchor="middle" dominant-baseline="middle" dy="1">${i + 1}</text>
+    </g>`;
       return `
     <g class="node" style="animation: pulse-${n.id} ${loopMs}ms linear infinite;"
        transform="translate(${n.x}, ${n.y})">
       <rect width="${n.w}" height="${n.h}" rx="18" />
+      ${logoEl}
       ${iconEl}
       <text x="${textX}" y="${n.h / 2}" text-anchor="${textAnchor}" dominant-baseline="middle">${esc(n.label)}</text>
       ${brandEl}
+      ${stepBadge}
     </g>`;
     })
     .join('\n');
@@ -233,9 +250,13 @@ export function buildFlowGifHtml({
           const bx = branch.x;
           const by = branch.y + branch.h / 2;
           const hasIcon = Boolean(branch.icon);
-          const textX = hasIcon ? ICON_PAD + 26 + 14 : branch.w / 2;
+          const BRANCH_ICON = 34;
+          const BRANCH_PAD = 22;
+          const textX = hasIcon ? BRANCH_PAD * 2 + BRANCH_ICON : branch.w / 2;
           const textAnchor = hasIcon ? 'start' : 'middle';
-          const iconEl = hasIcon ? iconAt(icon(branch.icon), ICON_PAD, branch.h / 2 - 13, 26, 'var(--warn)') : '';
+          const iconEl = hasIcon
+            ? iconAt(icon(branch.icon), BRANCH_PAD, branch.h / 2 - BRANCH_ICON / 2, BRANCH_ICON, 'var(--warn)')
+            : '';
           return `
     <path class="branch-line" d="M ${fx},${fy} L ${bx},${by}" />
     <g class="branch-node" transform="translate(${branch.x}, ${branch.y})">
@@ -307,21 +328,27 @@ export function buildFlowGifHtml({
     position: relative; z-index: 2;
     font-family: 'Space Grotesk', sans-serif;
     font-size: 44px; font-weight: 700; line-height: 1.15;
-    margin: 72px 240px 0 72px;
+    margin: 20px 72px 0 72px;
   }
+  /* In normal flow, above the title, not absolutely positioned beside
+     it — an overlay badge collided with the title text once the title
+     wrapped to two lines; height varies with title length, so sizing an
+     absolute badge to dodge it reliably isn't worth it when flow does
+     it for free. */
   .brand-badge {
-    position: absolute; z-index: 3; top: 72px; right: 72px;
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 16px;
+    position: relative; z-index: 2;
+    display: inline-flex; align-items: center; gap: 10px;
+    margin: 56px 0 0 72px;
+    padding: 12px 20px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 999px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 15px; font-weight: 600;
+    font-size: 17px; font-weight: 600;
     color: var(--muted);
   }
-  .brand-badge-icon { width: 18px; height: 18px; display: block; color: var(--text); }
-  .brand-badge-icon svg { width: 18px; height: 18px; display: block; fill: currentColor; }
+  .brand-badge-icon { width: 26px; height: 26px; display: block; color: var(--text); }
+  .brand-badge-icon svg { width: 26px; height: 26px; display: block; fill: currentColor; }
 
   /* Absolutely positioned, not flowed after <h1> — otherwise the title's
      own flow height pushes every node coordinate down by that much,
@@ -356,19 +383,29 @@ export function buildFlowGifHtml({
   .node text {
     fill: var(--text);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 22px;
+    font-size: 27px;
     font-weight: 600;
   }
   .node .brand-mark { opacity: 0.5; }
   .node .brand-mark svg { fill: currentColor; }
-  /* Real, full-color product logos (Bun, Playwright) keep their own
-     per-path brand colors — no fill override, just a slight dim so they
-     don't outweigh the node's own icon/label as the primary read. */
-  .node .logo-mark { opacity: 0.85; }
+  /* Real, full-color product logos (Bun, Playwright) are the node's
+     PRIMARY visual, not a corner accent — full opacity, on their own
+     white badge (matching the reference post: every bank mark there
+     sits on a white chip so it stays legible regardless of the
+     diagram's own background color). */
+  .node .logo-mark { opacity: 1; }
+  .node .logo-mark rect { filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35)); }
+  .step-badge circle { fill: var(--accent); }
+  .step-badge text {
+    fill: #04231f;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+  }
   ${nodePulseKeyframes}
 
   .chip rect { fill: rgba(63, 208, 201, 0.12); stroke: var(--accent); stroke-width: 1.5; }
-  .chip text { fill: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600; }
+  .chip text { fill: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 600; }
   ${chipKeyframes}
 
   .branch-line {
@@ -378,14 +415,14 @@ export function buildFlowGifHtml({
   }
   @keyframes march-branch { to { stroke-dashoffset: -320; } }
   .branch-node rect { fill: rgba(255, 180, 84, 0.08); stroke: var(--warn); stroke-width: 2; stroke-dasharray: 5 5; }
-  .branch-node text { fill: var(--warn); font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 600; }
+  .branch-node text { fill: var(--warn); font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 600; }
 </style>
 </head>
 <body>
   <div class="scene">
     <div class="bg-dots"></div>
-    <h1>${esc(title)}</h1>
     ${brandBadgeEl}
+    <h1>${esc(title)}</h1>
     <svg class="diagram" viewBox="0 0 ${PAGE_W} ${PAGE_H}" width="${PAGE_W}" height="${PAGE_H}">
       <path class="spine" d="M ${lineX},${lineTop} L ${lineX},${lineBottom}" />
       ${branchPath}
