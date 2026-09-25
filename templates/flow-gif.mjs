@@ -57,8 +57,7 @@ function sizedIcon(svg, size) {
 /** A vendored icon, sized/positioned via a wrapping <g> (see module comment
  * for why nested transforms have to live one level up from any CSS-animated
  * element). `colorVar` only takes effect on icons that actually reference
- * currentColor (Tabler's stroke, or a brand mark forced via the
- * `.brand-mark svg { fill: currentColor }` rule below). */
+ * currentColor (Tabler's stroke, or a logo mark forced via CSS below). */
 function iconAt(svg, x, y, size, colorVar) {
   return `<g transform="translate(${x}, ${y})" style="color: ${colorVar};">${sizedIcon(svg, size)}</g>`;
 }
@@ -66,18 +65,18 @@ function iconAt(svg, x, y, size, colorVar) {
 /**
  * @param {object} opts
  * @param {string} opts.title
- * @param {{id:string, x:number, y:number, w:number, h:number, label:string, icon?:string, brand?:string, logo?:string}[]} opts.nodes
+ * @param {{id:string, x:number, y:number, w:number, h:number, label:string, icon?:string, logo?:string}[]} opts.nodes
  *   Main-path nodes, in travel order — the traveling dot visits them in
- *   array order, evenly spaced across the first 80% of `loopMs`. `icon` is
- *   a Tabler name (assets/icons/tabler/), rendered as a left-aligned badge
- *   inside the node. `brand` (assets/icons/simple-icons/, flat single
- *   color) or `logo` (assets/logos/gilbarbara/, real full color — use this
- *   one when the exact tool has a distinctive multi-color mark, e.g. Bun
- *   or Playwright) render small in the node's bottom-right corner — use
- *   either only where it's factually true of that node (e.g. this repo's
- *   `.mjs` scripts really do run under `bun`, and `render.mjs` really does
- *   drive Playwright), never as decoration. At most one of `brand`/`logo`
- *   per node.
+ *   array order, evenly spaced across the first 80% of `loopMs`. Each node
+ *   is an icon-over-label card, not a filename pill — a general audience
+ *   doesn't know what "quality-gate.mjs" is, so `label` should be a plain-
+ *   language function name ("Quality Check"), and either `logo` (a real
+ *   full-color product mark, assets/logos/gilbarbara/, used large and
+ *   central — use this only where it's factually true of that node, e.g.
+ *   this repo's `.mjs` scripts really do run under `bun`) or `icon` (a
+ *   Tabler outline mark, the fallback when no distinctive product logo
+ *   applies) supplies the large primary visual above it. At most one of
+ *   `logo`/`icon` renders per node — `logo` wins when both are given.
  * @param {{x:number, y:number, w:number, h:number, label:string, icon?:string}} [opts.branch]
  *   One optional off-path node (e.g. the "rejected" branch), connected from
  *   `branchFrom` with a static, muted, differently-colored dashed line —
@@ -189,44 +188,37 @@ export function buildFlowGifHtml({
     })
     .join('\n');
 
-  // A real product `logo` is the PRIMARY visual on a node that has one —
-  // large, full color, on its own white badge so it stays legible over
-  // the dark theme regardless of the logo's own palette (the same trick
-  // the reference UPI post uses: every bank mark sits on a white chip,
-  // not directly on the diagram's own background). A plain `icon` (no
-  // logo) is the fallback primary visual, smaller, tinted via
-  // currentColor since Tabler's outline style already reads fine
-  // directly on dark. `brand` stays a small secondary corner credit for
-  // cases that don't warrant the full badge treatment.
-  const LOGO_BADGE = 72;
-  const LOGO_SIZE = 46;
-  const ICON_SIZE = 38;
-  const PAD = 22;
-  const BRAND_SIZE = 20;
-  const STEP_R = 22;
+  // Icon-over-label card, not a horizontal filename pill — a general
+  // LinkedIn audience doesn't know what "quality-gate.mjs" is, but a big
+  // recognizable logo plus a plain-language caption underneath ("Quality
+  // Check") reads the way an app icon with a name under it reads: no
+  // technical vocabulary required to follow the flow. A real product
+  // `logo` is the primary visual when a node has one — large, full
+  // color, on its own white badge so it stays legible over the dark
+  // theme regardless of the logo's own palette (the same trick the
+  // reference UPI post uses: every bank mark sits on a white chip, not
+  // directly on the diagram's own background). A plain `icon` (no logo)
+  // is the fallback primary visual, tinted via currentColor since
+  // Tabler's outline style already reads fine directly on dark.
+  const LOGO_BADGE = 88;
+  const LOGO_SIZE = 54;
+  const ICON_SIZE = 52;
+  const ICON_CENTER_Y = 12 + LOGO_BADGE / 2;
+  const STEP_R = 24;
 
   const nodeEls = nodes
     .map((n, i) => {
       const hasLogo = Boolean(n.logo);
-      const hasIcon = Boolean(n.icon) && !hasLogo;
-      const textX = hasLogo ? PAD * 2 + LOGO_BADGE : hasIcon ? PAD * 2 + ICON_SIZE : n.w / 2;
-      const textAnchor = hasLogo || hasIcon ? 'start' : 'middle';
+      const cx = n.w / 2;
 
       const logoEl = hasLogo
         ? `<g class="logo-mark">
-            <rect x="${PAD}" y="${n.h / 2 - LOGO_BADGE / 2}" width="${LOGO_BADGE}" height="${LOGO_BADGE}" rx="16" fill="#fff" />
-            ${iconAt(logoIcon(n.logo), PAD + (LOGO_BADGE - LOGO_SIZE) / 2, n.h / 2 - LOGO_SIZE / 2, LOGO_SIZE, '#111')}
+            <rect x="${cx - LOGO_BADGE / 2}" y="${ICON_CENTER_Y - LOGO_BADGE / 2}" width="${LOGO_BADGE}" height="${LOGO_BADGE}" rx="20" fill="#fff" />
+            ${iconAt(logoIcon(n.logo), cx - LOGO_SIZE / 2, ICON_CENTER_Y - LOGO_SIZE / 2, LOGO_SIZE, '#111')}
           </g>`
         : '';
-      const iconEl = hasIcon ? iconAt(icon(n.icon), PAD, n.h / 2 - ICON_SIZE / 2, ICON_SIZE, 'var(--accent)') : '';
-      const brandEl = n.brand
-        ? `<g class="brand-mark">${iconAt(
-            brandIcon(n.brand),
-            n.w - BRAND_SIZE - 16,
-            n.h - BRAND_SIZE - 14,
-            BRAND_SIZE,
-            'var(--muted)'
-          )}</g>`
+      const iconEl = !hasLogo
+        ? iconAt(icon(n.icon), cx - ICON_SIZE / 2, ICON_CENTER_Y - ICON_SIZE / 2, ICON_SIZE, 'var(--accent)')
         : '';
       // Numbered step badge, overlapping the top-left corner — this
       // pipeline genuinely is an ordered sequence, so a literal step
@@ -238,14 +230,14 @@ export function buildFlowGifHtml({
       <circle r="${STEP_R}" />
       <text text-anchor="middle" dominant-baseline="middle" dy="1">${i + 1}</text>
     </g>`;
+      const labelY = ICON_CENTER_Y + LOGO_BADGE / 2 + (n.h - (ICON_CENTER_Y + LOGO_BADGE / 2)) / 2;
       return `
     <g class="node" style="animation: pulse-${n.id} ${loopMs}ms linear infinite;"
        transform="translate(${n.x}, ${n.y})">
-      <rect width="${n.w}" height="${n.h}" rx="18" />
+      <rect width="${n.w}" height="${n.h}" rx="20" />
       ${logoEl}
       ${iconEl}
-      <text x="${textX}" y="${n.h / 2}" text-anchor="${textAnchor}" dominant-baseline="middle">${esc(n.label)}</text>
-      ${brandEl}
+      <text x="${cx}" y="${labelY}" text-anchor="middle" dominant-baseline="middle">${esc(n.label)}</text>
       ${stepBadge}
     </g>`;
     })
@@ -435,14 +427,12 @@ export function buildFlowGifHtml({
   }
   .node text {
     fill: var(--text);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 27px;
+    font-family: 'Inter', sans-serif;
+    font-size: 26px;
     font-weight: 600;
   }
-  .node .brand-mark { opacity: 0.5; }
-  .node .brand-mark svg { fill: currentColor; }
   /* Real, full-color product logos (Bun, Playwright) are the node's
-     PRIMARY visual, not a corner accent — full opacity, on their own
+     PRIMARY visual, large and central — full opacity, on their own
      white badge (matching the reference post: every bank mark there
      sits on a white chip so it stays legible regardless of the
      diagram's own background color). */
@@ -458,7 +448,7 @@ export function buildFlowGifHtml({
   ${nodePulseKeyframes}
 
   .chip rect { fill: rgba(63, 208, 201, 0.12); stroke: var(--accent); stroke-width: 1.5; }
-  .chip text { fill: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 600; }
+  .chip text { fill: var(--accent); font-family: 'Inter', sans-serif; font-size: 17px; font-weight: 600; }
   ${chipKeyframes}
 
   .branch-line {
@@ -469,7 +459,7 @@ export function buildFlowGifHtml({
   @keyframes march-branch { to { stroke-dashoffset: -320; } }
   .branch-arrow { fill: var(--warn); opacity: 0.7; }
   .branch-node rect { fill: rgba(255, 180, 84, 0.08); stroke: var(--warn); stroke-width: 2; stroke-dasharray: 5 5; }
-  .branch-node text { fill: var(--warn); font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 600; }
+  .branch-node text { fill: var(--warn); font-family: 'Inter', sans-serif; font-size: 19px; font-weight: 600; }
 </style>
 </head>
 <body>

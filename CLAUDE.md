@@ -86,51 +86,72 @@ bun scripts/gif.mjs output/<slug>/flow-scene.html output/<slug>/flow.gif [--dura
 - Frames are decoded with `pngjs` and encoded with `gifenc` (pure JS, no
   native deps — installs in well under a second on this sandbox's `bun`).
 
-**Nodes carry real vendored art, not just labeled boxes** — a node's
-`icon` (Tabler, `scripts/icons.mjs::icon()`), `brand` (a flat single-color
-mark, `::brandIcon()`, `assets/icons/simple-icons/*.svg`, CC0), and `logo`
-(a real full-color product logo, `::logoIcon()`, `assets/logos/
-gilbarbara/*.svg`, CC0 — for developer tools simple-icons doesn't carry,
-e.g. Bun, Playwright) all render as actual nested `<svg>` content inside
-the diagram's own `<svg>`, not decoration bolted on after the fact.
+**Nodes are icon-over-label cards, not filename pills.** A node's `icon`
+(Tabler, `scripts/icons.mjs::icon()`) or `logo` (a real full-color product
+logo, `::logoIcon()`, `assets/logos/gilbarbara/*.svg`, CC0 — for
+developer tools `simple-icons` doesn't carry, e.g. Bun, Playwright) is the
+large, centered, primary visual in the card's upper area; `label` is a
+short plain-language caption centered below it — never a filename or
+internal identifier. **This repo's own manifests are built for a
+technical audience (see the Jev quality-gate's own `AUDIENCE` constant),
+but the flow-GIF diagram is the first thing a much broader, non-technical
+LinkedIn scroller actually sees, and it has to stand on its own without
+that context.** `content/jev-claude-code.flow.json` learned this the hard
+way: its nodes originally read `quality-gate.mjs`, `build.mjs`,
+`render.mjs` — meaningless to anyone who doesn't already know this repo.
+They're now `"Quality Check"`, `"Build Page"`, `"Render Image"` etc. —
+what each step *does*, not what file does it. `logo`/`icon` still has to
+be factually true of that node (the `"Quality Check"` and `"Build Page"`
+cards carry the real Bun logo because those scripts genuinely run as
+`bun scripts/*.mjs`; `"Render Image"` carries the real Playwright logo
+because that stage's entire job is driving Playwright/Chromium — a
+generic Node.js mark would be *less* accurate, not just less specific,
+once the repo migrated off plain `node`) — the caption is what changed,
+not the discipline of only using real, applicable marks. A `brandBadge`
+in the scene header works the same way (the real Anthropic mark on a post
+that's literally about Claude Code, not a generic robot icon).
 
-**`logo` is the node's PRIMARY visual, not a corner accent — this was
-wrong in an earlier version of this file and of the code, caught only by
-holding the actual output next to the real reference post, not by
-re-reading either in isolation.** The initial implementation sized `logo`
-at 20-26px, dimmed to 50-85% opacity, tucked in the node's bottom-right
-corner — a "credit," not content. Compared side by side against the
-reference post's own image (a dense infographic where every bank/app logo
-renders at roughly 80-150px, full color, on its own white badge, plus
-explicit numbered steps), the gap was structural, not cosmetic: the
-reference's logos *are* the diagram, and its steps are numbered because
-the content genuinely is a sequence. Current behavior, matching that: a
-node with `logo` renders it large (46px icon on a 72px white rounded
-badge — white specifically so a multi-color logo stays legible over the
-dark theme regardless of its own palette, the same reason the reference's
-bank marks all sit on white chips rather than directly on its colored
-zones) as the node's leading visual, at full opacity, in the same slot
-`icon` would otherwise occupy — a node never shows both. Every node also
+**`logo`/`icon` is the node's PRIMARY visual, large and centered — not a
+corner accent — this was wrong in an earlier version of this file and of
+the code, caught only by holding the actual output next to the real
+reference post, not by re-reading either in isolation.** The initial
+implementation sized `logo` at 20-26px, dimmed to 50-85% opacity, tucked
+in the node's bottom-right corner, with the (still-technical) label
+running the full card width beside it — a "credit," not content.
+Compared side by side against the reference post's own image (a dense
+infographic where every bank/app logo renders at roughly 80-150px, full
+color, on its own white badge, plus explicit numbered steps), the gap was
+structural, not cosmetic. Current behavior: a `logo` renders large (54px
+icon on an 88px white rounded badge — white specifically so a multi-color
+logo stays legible over the dark theme regardless of its own palette, the
+same reason the reference's bank marks all sit on white chips rather than
+directly on its colored zones) centered in the card's upper area; a plain
+`icon` (52px, no white badge — Tabler's outline style already reads fine
+directly on dark) is the fallback when no real product logo applies. The
+plain-language `label` sits centered below, in `'Inter'` rather than the
+monospace `'JetBrains Mono'` the rest of this diagram's UI chrome uses —
+monospace reads as "code," which works against the non-technical-friendly
+goal even where the words themselves are already plain. Every node also
 gets a numbered step badge (a filled circle at its top-left corner,
 `1`-indexed by array order) for the same reason the reference numbers its
 steps: this pipeline genuinely is an ordered sequence, so the number is
 real structure, not decoration (see `artifact-design`'s "structure is
 information" principle — it applies here too, even outside an actual
-Artifact page). `brand` is kept for cases that only warrant a small
-secondary credit, not a primary logo, and stays dim/corner-badge sized.
+Artifact page).
 
-Use `brand`/`logo` only where it's literally true of that specific node —
-never generic flair. This post's own flow manifest
-(`content/jev-claude-code.flow.json`) is the worked example: the
-`quality-gate.mjs`/`build.mjs` nodes carry the real Bun logo because this
-repo's scripts genuinely run as `bun scripts/*.mjs` (see "Runtime &
-package manager"), and `render.mjs` carries the real Playwright logo
-because that stage's entire job is driving Playwright/Chromium — a
-generic Node.js mark on `render.mjs` would've been *less* accurate, not
-just less specific, once the repo migrated off plain `node`. A
-`brandBadge` in the scene header works the same way (the real Anthropic
-mark on a post that's literally about Claude Code, not a generic robot
-icon).
+**Gotcha: node height and vertical spacing have to be recomputed together
+— copying the old spacing numbers when the card got taller silently
+overlapped every node into the next one.** Growing the card to fit a
+much bigger logo badge (72px card height → 150px, to fit an 88px badge
+plus a label row) without recalculating the y-spacing between nodes left
+the old ~176px gaps smaller than the new 150px+comfortable-gap card
+actually needed — nodes visually overlapped, labels sat inside the
+*next* card's body, connectors criss-crossed through card interiors
+again. Caught by rendering and looking (per "Verify visually" below), not
+by reading the coordinates. Fix: whenever a node's `h` changes, re-derive
+every `y` from scratch (`spacing = h + desired_gap`, positions
+`start, start+spacing, start+2*spacing, …`) rather than reusing a
+previous layout's numbers.
 
 **Two more real gotchas hit wiring vendored icons into an SVG-in-SVG
 scene, both again only visible by rendering and looking:**
