@@ -211,6 +211,23 @@ media. If present, `scripts/build.mjs` writes them out as
 `output/<slug>/caption.md` (caption, blank line, space-joined `#tags`)
 alongside `carousel.html`, ready to paste into LinkedIn's post composer.
 
+**Caption structure, calibrated against real high-performing posts, not
+guessed**: a sample of 4 posts (2,830 / 1,279 / 911 / 213 likes) showed the
+lowest performer was the one structurally closest to a naive AI-generated
+caption — flowing prose, no myth-correction hook, nothing telling the
+reader to save it. The top 3 shared: a myth-correction or shocking-number
+opening line ("Your database isn't slow, you forgot to cache" / "₹18.41
+Trillion"), an explicit **save-this** trigger, and emoji-sectioned,
+scannable structure (⚡🎲📊⚠️ — short paragraphs under each, not dense
+blocks). Notably, 2 of the top 3 had **no carousel at all** — the carousel
+isn't what won, the hook and scannability did. Write every caption in this
+structure (see `speculative-decoding.json`'s `caption` field for a worked
+example) regardless of whether the post also has slides; don't let the
+carousel's existence excuse a lazy caption. Still keep the carousel for
+content whose value is genuinely visual (a real diagram, real code) — that
+was the other consistent trait across posts that *did* carry a carousel
+and still performed.
+
 Slide types and their fields, all in `templates/carousel.mjs`'s
 `RENDERERS` map:
 
