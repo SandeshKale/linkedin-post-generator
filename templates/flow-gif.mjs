@@ -107,11 +107,30 @@ export function buildFlowGifHtml({
   brandBadgeLabel,
 }) {
   const centerX = (n) => n.x + n.w / 2;
-  const first = nodes[0];
-  const last = nodes[nodes.length - 1];
-  const lineX = centerX(first);
-  const lineTop = first.y + first.h / 2;
-  const lineBottom = last.y + last.h / 2;
+  const lineX = centerX(nodes[0]);
+
+  // Real connector segments — one per adjacent node pair, each starting a
+  // few px below the source node's own bottom edge and ending a few px
+  // above the target's top edge. The earlier version used a single line
+  // from the first node's center to the last node's center, which ran
+  // straight through every node's body (invisible only because the card
+  // fill happened to be opaque) — not how a flow-diagram connector works:
+  // an edge connects two node BOUNDARIES, never passes through a node's
+  // interior, and shows its direction with an arrowhead at the target
+  // end. Each segment below gets exactly that.
+  const EDGE_GAP = 10;
+  const segments = nodes.slice(0, -1).map((n, i) => {
+    const next = nodes[i + 1];
+    return { x: lineX, y1: n.y + n.h + EDGE_GAP, y2: next.y - EDGE_GAP };
+  });
+  // One combined multi-subpath `d` string ("M x,y1 L x,y2 M x,y1 L x,y2 …")
+  // purely as the dot's `offset-path` reference — CSS motion-path treats
+  // `offset-distance` as continuous total length across subpaths, jumping
+  // instantly at each `M`, which is exactly right here: the dot should be
+  // visible only while actually traveling a connector, and disappear the
+  // instant it would otherwise be "inside" a node (occluded by that
+  // node's own card, same as before, just geometrically honest now).
+  const dotPathD = segments.map((s) => `M ${s.x},${s.y1} L ${s.x},${s.y2}`).join(' ');
 
   // Dot travels the first 80% of the loop, then holds at the last node for
   // the remaining 20% — a deliberate pause so a viewer scrubbing the GIF
@@ -137,21 +156,35 @@ export function buildFlowGifHtml({
     ? (nodes.findIndex((n) => n.id === chipsAt) / (nodes.length - 1)) * TRAVEL_FRACTION * 100
     : 0;
   const chipWindowStart = Math.max(0, chipCenterPct - 6);
-  const chipWindowEnd = Math.min(100, chipCenterPct + 10);
   const CHIP_W = 250;
   const CHIP_H = 40;
+  // Chips enter once, staggered, then STAY on screen for the rest of the
+  // loop instead of fading back out — they represent the four judgments
+  // Jev actually returns, which remain true for the rest of the pipeline
+  // run, not just the instant the dot passes through. "Stay but keep
+  // moving" is a gentle continuous bob after the entrance settles, each
+  // chip on its own phase/period so they don't move in lockstep — cheap
+  // motion via `sin()` in the keyframe math below, real per-chip
+  // keyframes since CSS animations can't compute this at runtime.
   const chipKeyframes = chips
     .map((_, i) => {
-      const span = chipWindowEnd - chipWindowStart;
-      const stagger = chipCount > 1 ? (span * 0.5 * i) / chipCount : 0;
+      const stagger = chipCount > 1 ? (6 * i) / chipCount : 0;
       const inAt = (chipWindowStart + stagger).toFixed(2);
-      const peakAt = (chipWindowStart + stagger + span * 0.22).toFixed(2);
-      const outAt = Math.min(100, chipWindowEnd + stagger).toFixed(2);
+      const settleAt = (chipWindowStart + stagger + 5).toFixed(2);
+      // Idle bob: 5 evenly-spaced stops from settle to loop end, each
+      // chip's phase offset by its index so the row doesn't bob in unison.
+      const bobStops = 6;
+      const phase = (i / Math.max(1, chipCount)) * Math.PI * 2;
+      const idle = Array.from({ length: bobStops }, (_, s) => {
+        const t = Number(settleAt) + ((100 - Number(settleAt)) * (s + 1)) / bobStops;
+        const y = Math.sin(phase + (s + 1) * 1.1) * 3.5;
+        return `${t.toFixed(2)}% { opacity: 1; transform: translateY(${y.toFixed(2)}px) scale(1); }`;
+      }).join('\n          ');
       return `
         @keyframes chip-${i} {
           0%, ${inAt}% { opacity: 0; transform: translateY(6px) scale(0.9); }
-          ${peakAt}% { opacity: 1; transform: translateY(0) scale(1); }
-          ${outAt}%, 100% { opacity: 0; transform: translateY(-4px) scale(0.9); }
+          ${settleAt}% { opacity: 1; transform: translateY(0) scale(1); }
+          ${idle}
         }`;
     })
     .join('\n');
@@ -249,6 +282,24 @@ export function buildFlowGifHtml({
           const fy = from.y + from.h / 2;
           const bx = branch.x;
           const by = branch.y + branch.h / 2;
+          // Arrowhead at the branch end, oriented along the actual line
+          // direction (this connector is diagonal, unlike the vertical
+          // main-path segments, so the triangle needs real rotation math
+          // rather than a fixed downward shape).
+          const dx = bx - fx;
+          const dy = by - fy;
+          const len = Math.hypot(dx, dy) || 1;
+          const ux = dx / len;
+          const uy = dy / len;
+          const ARROW_LEN = 14;
+          const ARROW_W = 8;
+          const tipX = bx;
+          const tipY = by;
+          const baseX = tipX - ux * ARROW_LEN;
+          const baseY = tipY - uy * ARROW_LEN;
+          const perpX = -uy * ARROW_W;
+          const perpY = ux * ARROW_W;
+          const branchArrow = `<polygon class="branch-arrow" points="${tipX},${tipY} ${baseX + perpX},${baseY + perpY} ${baseX - perpX},${baseY - perpY}" />`;
           const hasIcon = Boolean(branch.icon);
           const BRANCH_ICON = 34;
           const BRANCH_PAD = 22;
@@ -259,6 +310,7 @@ export function buildFlowGifHtml({
             : '';
           return `
     <path class="branch-line" d="M ${fx},${fy} L ${bx},${by}" />
+    ${branchArrow}
     <g class="branch-node" transform="translate(${branch.x}, ${branch.y})">
       <rect width="${branch.w}" height="${branch.h}" rx="16" />
       ${iconEl}
@@ -361,11 +413,12 @@ export function buildFlowGifHtml({
     animation: march 1400ms linear infinite;
   }
   @keyframes march { to { stroke-dashoffset: -400; } }
+  .spine-arrow { fill: var(--border); }
 
   .dot {
     fill: var(--accent);
     filter: drop-shadow(0 0 10px rgba(63, 208, 201, 0.9));
-    offset-path: path('M ${lineX},${lineTop} L ${lineX},${lineBottom}');
+    offset-path: path('${dotPathD}');
     animation: travel ${loopMs}ms linear infinite;
   }
   @keyframes travel {
@@ -414,6 +467,7 @@ export function buildFlowGifHtml({
     animation: march-branch 2200ms linear infinite;
   }
   @keyframes march-branch { to { stroke-dashoffset: -320; } }
+  .branch-arrow { fill: var(--warn); opacity: 0.7; }
   .branch-node rect { fill: rgba(255, 180, 84, 0.08); stroke: var(--warn); stroke-width: 2; stroke-dasharray: 5 5; }
   .branch-node text { fill: var(--warn); font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 600; }
 </style>
@@ -424,7 +478,13 @@ export function buildFlowGifHtml({
     ${brandBadgeEl}
     <h1>${esc(title)}</h1>
     <svg class="diagram" viewBox="0 0 ${PAGE_W} ${PAGE_H}" width="${PAGE_W}" height="${PAGE_H}">
-      <path class="spine" d="M ${lineX},${lineTop} L ${lineX},${lineBottom}" />
+      ${segments
+        .map(
+          (s) => `
+      <path class="spine" d="M ${s.x},${s.y1} L ${s.x},${s.y2}" />
+      <polygon class="spine-arrow" points="${s.x - 8},${s.y2 - 12} ${s.x + 8},${s.y2 - 12} ${s.x},${s.y2}" />`
+        )
+        .join('\n')}
       ${branchPath}
       <circle class="dot" r="14" />
       ${nodeEls}

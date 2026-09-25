@@ -186,6 +186,51 @@ a quick visual skim — a small preview crop of a 2160px-tall frame is easy
 to misread by eye, especially near a node boundary; a numeric position
 trace across all frames is not.
 
+**Connectors are real edges, not one line drawn through every node's
+body.** An earlier version of `buildFlowGifHtml()` drew a single line
+from the first node's center to the last node's center and let the dot
+travel that whole span — invisible mid-node only because the card fill
+happened to be opaque, not because the connector respected node
+boundaries the way an actual flow-diagram edge does. Caught by holding
+the output next to a real reference diagram, not by re-reading the SVG.
+Current behavior: one path segment per adjacent node pair, starting
+`EDGE_GAP`px below the source node's bottom edge and ending `EDGE_GAP`px
+above the target's top edge, each with its own arrowhead polygon showing
+direction (rotated via real trig for the diagonal branch connector, fixed
+downward-pointing for the vertical main-path segments). The dot's
+`offset-path` is a **separate**, invisible multi-subpath `d` string built
+from those same segments — CSS motion-path treats `offset-distance` as
+continuous length across subpaths and jumps instantly at each `M`, which
+is correct here: the dot should only ever be visible while actually
+traversing a connector, and disappear the instant it would otherwise be
+"inside" a node.
+
+**Chips persist once shown, with continued idle motion, instead of
+fading back out.** The four judgment-check chips represent things that
+stay true for the rest of the pipeline run once Jev has answered them,
+not a transient tooltip — fading them out after the dot moved past `jev`
+was wrong regardless of how it looked. Each chip's `@keyframes` now has
+one entrance (fade/scale in, staggered per chip) followed by several
+idle "bob" keyframe stops running to 100% (a few px of `sin()`-phased
+`translateY`, each chip's phase offset by index so they don't move in
+lockstep) — real per-chip keyframes computed at build time, since a CSS
+animation can't do the trig itself. They still reset at the loop seam
+(next iteration's 0% keyframe), which is an acceptable hard cut at a GIF
+loop boundary, same as the dot's own jump back to the first node.
+
+**GIF's frame delay is stored in 1/100s units, so true 60fps (16.67ms/
+frame) isn't representable** — `gifenc` rounds to the nearest achievable
+value, 2 centiseconds (20ms → 50fps), which is as close as the format
+gets. That's a real format ceiling, not a bug in `scripts/gif.mjs`.
+Requesting a higher frame rate also multiplies frame count directly
+(`Math.round(loopMs / (1000/fps))`), which multiplies file size roughly
+linearly — going from 18fps to 50fps-effective-60 on this same scene
+took `output/jev-claude-code/flow.gif` from ~4.4MB (76 frames) to
+~15.4MB (252 frames), likely too large for a practical LinkedIn upload.
+`--fps` is a real tradeoff between motion smoothness and file size, not
+a free dial — check the resulting file size after raising it, the same
+way you'd check a carousel PNG's dimensions after changing `--scale`.
+
 ## Content quality gate (Jev)
 
 `scripts/quality-gate.mjs` runs a manifest's content past [Jev](https://typesafe.ai)
