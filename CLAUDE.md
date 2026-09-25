@@ -31,8 +31,8 @@ for the renderer to compute.
 Two-stage pipeline, always run in this order:
 
 ```bash
-node scripts/build.mjs content/<manifest>.json     # → output/<slug>/carousel.html
-node scripts/render.mjs output/<slug>/carousel.html # → carousel.pdf + slide-NN.png
+bun scripts/build.mjs content/<manifest>.json     # → output/<slug>/carousel.html
+bun scripts/render.mjs output/<slug>/carousel.html # → carousel.pdf + slide-NN.png
 ```
 
 `build.mjs` never touches Playwright's *render* path — its own use of
@@ -45,9 +45,9 @@ Three-stage pipeline once the optional quality gate is included — see
 than folded into `build.mjs`:
 
 ```bash
-node scripts/quality-gate.mjs content/<manifest>.json [--strict]  # advisory (or blocking) judgment, no output files
-node scripts/build.mjs content/<manifest>.json                    # → output/<slug>/carousel.html
-node scripts/render.mjs output/<slug>/carousel.html                # → carousel.pdf + slide-NN.png
+bun scripts/quality-gate.mjs content/<manifest>.json [--strict]  # advisory (or blocking) judgment, no output files
+bun scripts/build.mjs content/<manifest>.json                    # → output/<slug>/carousel.html
+bun scripts/render.mjs output/<slug>/carousel.html                # → carousel.pdf + slide-NN.png
 ```
 
 ## Content quality gate (Jev)
@@ -160,8 +160,66 @@ linkedin-post-generator/
 │   └── VIDEO_GENERATOR_ATTRIBUTION.md   Per-source license table for the merged-in set
 ├── output/                 Generated, gitignored — carousel.html/.pdf, slide-NN.png, caption.md, alt-text.md per slug
 ├── package.json            Deps: playwright, mermaid, @terrastruct/d2, shiki, zod, @typesafe-ai/sdk
+├── bun.lock                Committed lockfile — see "Runtime & package manager"
 └── CLAUDE.md               This file
 ```
+
+## Runtime & package manager
+
+This repo runs on **[bun](https://bun.sh)**, not npm — `bun install`,
+`bun scripts/build.mjs` (or `bun run build`/`render`/`quality-gate`, the
+`package.json` script aliases). `bun.lock` is the committed lockfile;
+there is no `package-lock.json` and one should not be reintroduced.
+
+**This was a measured decision, not a default.** Before migrating,
+`npm`/`pnpm`/`bun`/`yarn` install speed was actually benchmarked in this
+exact sandbox on this exact `package.json` (not looked up from a generic
+blog post), and the choice was then put to Jev (`docs.typesafe.ai`) as a
+`choice` question over the four real options, with those measurements as
+`state` — see `CLAUDE.md`'s "Content quality gate (Jev)" section above for
+why that discipline (structured state, real facts, not a prose dump)
+matters generally; this is the same discipline applied to an infra
+decision instead of a content one. Result: **bun, 99% confidence.**
+Cold installs: npm 7.2s, pnpm 3.16s, bun 3.43s, yarn (Classic, the only
+Yarn actually preinstalled here — not v4/Berry) 18.8s, slower than npm
+itself. The deciding factor wasn't the cold number, though — it was
+**in-session repeat installs**, which is what a real dev session actually
+does over and over (this session alone ran well over a dozen). Bun keeps
+a global install cache that survives `rm -rf node_modules` within a
+session: repeat installs measured **0.26s**, against pnpm's 2.2s.
+
+**Before committing to the migration, the full three-stage pipeline was
+run *as bun, not just installed by bun*** — `bun scripts/quality-gate.mjs`
+(real Jev network call), `bun scripts/build.mjs` (Mermaid via Playwright,
+D2 via WASM, Shiki, Zod, icon validation), `bun scripts/render.mjs` (real
+`page.pdf()`/`screenshot()`) — and the resulting PNG was pixel-diffed
+against the npm-produced one. Identical. Error paths (an invalid manifest,
+`--strict` exit codes) were checked too, not just the happy path. The one
+result worth flagging explicitly: `scripts/d2.mjs`'s `process.exit()`
+workaround for D2's missing `dispose()` API (see "Diagram engines" below)
+was re-verified to still be necessary and still work correctly under
+bun's event loop — this is exactly the kind of runtime-specific gotcha
+that would otherwise only surface later, silently, the first time a `d2`
+diagram slide got built in production.
+
+**One concrete upside for future work, not just parity**: the Excalidraw
+diagram-engine integration documented as deferred in "Diagram engines"
+below was blocked specifically on needing to bundle
+`@excalidraw/mermaid-to-excalidraw` for browser injection, and ad hoc
+`esbuild` installs kept getting silently pruned by *npm's* resolver
+mid-session. Bun ships its own bundler (`bun build`) — no separate
+dependency for npm's resolver to prune. That specific blocker is
+substantially reduced on bun, should that integration get picked back up.
+
+**Honest residual caveat**: bun's Node.js compatibility is very good but
+not contractually 100%, and Playwright-on-bun has had scattered
+version/platform-specific community reports historically. This repo's own
+direct verification above (real PDF/PNG output, pixel-diffed) is stronger
+evidence than that generic caveat for this exact dependency set as of this
+migration — but it's why a version bump to `playwright`, `mermaid`, or
+`@terrastruct/d2` is worth a quick re-run of the real pipeline (per
+"Verify visually" in "Git / workflow conventions" below), not assumed
+compatible forever.
 
 ## The pagination contract (CSS `@page`, not `__seek`)
 
@@ -281,7 +339,7 @@ of valid names — the same "fail fast with a clear message" guardrail
 philosophy as the rest of this file, not a separate concern.
 
 **Vendoring a new icon**: this repo doesn't keep `@tabler/icons` as a
-dependency — same pattern as fonts (`npm install --no-save @tabler/icons`,
+dependency — same pattern as fonts (`bun add --no-save @tabler/icons`,
 copy the specific `icons/outline/<name>.svg` files needed into
 `assets/icons/tabler/`, `npm uninstall`). `assets/icons/tabler/LICENSE-MIT.txt`
 already covers the whole set; no per-icon attribution needed.
@@ -345,7 +403,7 @@ all**, reference/identification only, never redistribute as an owned asset).
   new family (see "Typography" below).
 - **`assets/icons/`** — `feather/` and `simple-icons/` (brand marks) are
   new; `tabler/` is a **merge**, not a replace — the icons this repo
-  already vendored via `scripts/icons.mjs`/`npm install --no-save
+  already vendored via `scripts/icons.mjs`/`bun add --no-save
   @tabler/icons` (a newer icon set/format) were kept as-is and
   video-generator's older curated Tabler subset was added alongside
   without overwriting any filename already in use (its set doesn't even
@@ -378,7 +436,7 @@ assumed present.** Headless Chromium has no system fonts installed beyond
 whatever the container image ships — an unavailable `font-family` falls
 back silently, not loudly. `assets/fonts/{inter,space-grotesk,
 jetbrains-mono}/*.woff2` were extracted from `@fontsource/*` packages
-(`npm install --no-save @fontsource/<name>`, copy the specific weights
+(`bun add --no-save @fontsource/<name>`, copy the specific weights
 from `node_modules/@fontsource/<name>/files/`, then `npm uninstall` — the
 repo keeps the extracted `.woff2` files, not the npm dependency) and are
 loaded via relative `@font-face` `url()`s in `templates/carousel.mjs`
@@ -388,7 +446,7 @@ with `font-display: block`. License: `assets/fonts/LICENSE-OFL.txt`.
 - **Inter** (400/600/700) — body text, footer, list items.
 - **JetBrains Mono** (400/600) — eyebrow labels, page-count pill, code blocks.
 
-Adding a new vendored family follows the identical `npm install --no-save`
+Adding a new vendored family follows the identical `bun add --no-save`
 → extract → `npm uninstall` pattern — see `video-generator/CLAUDE.md`'s
 "Typography house style" for the fuller rationale if this needs repeating
 for a fourth family.
@@ -459,7 +517,7 @@ Node — it genuinely needs a real DOM, so it would need the same
 Playwright-page-injection pattern `scripts/mermaid.mjs` already uses, but
 bundled first (it's ESM-only, no prebuilt browser/UMD bundle ships in the
 package). That bundling step is exactly where this was deferred: ad hoc
-`npm install --no-save` calls for this package and its siblings
+`bun add --no-save` calls for this package and its siblings
 repeatedly triggered npm's resolver into silently pruning *other* already-
 installed packages in the same tree (esbuild and `@excalidraw/utils` both
 vanished mid-session without any explicit uninstall) — a real

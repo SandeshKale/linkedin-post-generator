@@ -1,9 +1,9 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Content-quality gate for a manifest, using Jev (TypeSafe AI) System One
  * judgments — run BEFORE scripts/build.mjs, never as part of it.
  *
- * Usage: node scripts/quality-gate.mjs <content/manifest.json> [--strict]
+ * Usage: bun scripts/quality-gate.mjs <content/manifest.json> [--strict]
  *
  * Why this is a separate stage and not folded into build.mjs: this repo's
  * core render contract (see CLAUDE.md "Core render contract") requires
@@ -33,7 +33,7 @@ import { parseManifest } from './manifest-schema.mjs';
 
 const [, , manifestArg, ...flags] = process.argv;
 if (!manifestArg) {
-  console.error('Usage: node scripts/quality-gate.mjs <content/manifest.json> [--strict]');
+  console.error('Usage: bun scripts/quality-gate.mjs <content/manifest.json> [--strict]');
   process.exit(1);
 }
 const STRICT = flags.includes('--strict');

@@ -10,12 +10,12 @@ that repo's `window.__seek(t)` time contract for CSS `@page` pagination and
 ## Quick start
 
 ```bash
-npm install
-npx playwright install chromium   # first run only, if not already cached
+bun install
+bunx playwright install chromium   # first run only, if not already cached
 
-node scripts/quality-gate.mjs content/example-rag-guardrails.json  # optional; needs JEV_API_KEY, see below
-node scripts/build.mjs content/example-rag-guardrails.json
-node scripts/render.mjs output/rag-guardrails/carousel.html
+bun scripts/quality-gate.mjs content/example-rag-guardrails.json  # optional; needs JEV_API_KEY, see below
+bun scripts/build.mjs content/example-rag-guardrails.json
+bun scripts/render.mjs output/rag-guardrails/carousel.html
 ```
 
 Output lands in `output/rag-guardrails/`:
@@ -32,8 +32,8 @@ see `CLAUDE.md`'s "Slide manifest schema" for the full field reference per
 type. Then rebuild:
 
 ```bash
-node scripts/build.mjs content/my-new-post.json
-node scripts/render.mjs output/my-new-post/carousel.html
+bun scripts/build.mjs content/my-new-post.json
+bun scripts/render.mjs output/my-new-post/carousel.html
 ```
 
 ## How it works
@@ -74,8 +74,8 @@ Requires `JEV_API_KEY` in the environment:
 
 ```bash
 export JEV_API_KEY=...          # never commit or log this
-node scripts/quality-gate.mjs content/my-post.json           # advisory report
-node scripts/quality-gate.mjs content/my-post.json --strict   # exit 1 on any flagged/uncertain check
+bun scripts/quality-gate.mjs content/my-post.json           # advisory report
+bun scripts/quality-gate.mjs content/my-post.json --strict   # exit 1 on any flagged/uncertain check
 ```
 
 See `CLAUDE.md`'s "Content quality gate (Jev)" for the full design —
@@ -86,11 +86,16 @@ how confidence gates each verdict.
 
 ```
 scripts/     build.mjs (manifest → HTML), render.mjs (HTML → PDF/PNG),
-             mermaid.mjs / shiki.mjs (pre-render helpers),
+             mermaid.mjs / d2.mjs (diagram engines) / shiki.mjs (code
+             highlighting) / icons.mjs (pre-render helpers),
              manifest-schema.mjs (Zod guardrail),
              jev.mjs / quality-gate.mjs (optional Jev content-quality gate)
 templates/   carousel.mjs — the HTML/CSS template
 content/     JSON slide manifests, one per post
-assets/      Vendored OFL webfonts
+assets/      Vendored fonts, icons, illustrations, logos, photos (OFL/MIT — see CLAUDE.md)
 output/      Generated, gitignored — regenerate anytime from content/
 ```
+
+Package manager is [bun](https://bun.sh) — see `CLAUDE.md`'s "Runtime &
+package manager" for why, and the real benchmark/compatibility numbers
+behind that choice.

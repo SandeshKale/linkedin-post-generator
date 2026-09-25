@@ -1,9 +1,9 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Exports a built carousel HTML document (output/<slug>/carousel.html, see
  * scripts/build.mjs) to a multi-page PDF and/or one PNG per slide.
  *
- * Usage: node scripts/render.mjs <carousel.html> [--scale=2] [--format=pdf,png]
+ * Usage: bun scripts/render.mjs <carousel.html> [--scale=2] [--format=pdf,png]
  *
  * This is the document-pipeline sibling of video-generator's
  * scripts/render.mjs: instead of driving window.__seek(t) at 60 fixed
@@ -22,7 +22,7 @@ import { pathToFileURL } from 'node:url';
 const [, , sourceArg, ...rest] = process.argv;
 
 if (!sourceArg) {
-  console.error('Usage: node scripts/render.mjs <carousel.html> [--scale=2] [--format=pdf,png]');
+  console.error('Usage: bun scripts/render.mjs <carousel.html> [--scale=2] [--format=pdf,png]');
   process.exit(1);
 }
 

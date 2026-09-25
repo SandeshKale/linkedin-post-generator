@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Hydrates a JSON slide manifest (content/<slug>.json) into a self-contained
  * HTML carousel document (output/<slug>/carousel.html), then closes. Also
@@ -6,7 +6,7 @@
  * `hashtags` fields, if present — the post's own text lives in the same
  * manifest as its media instead of drifting in a separate untracked doc.
  *
- * Usage: node scripts/build.mjs <content/manifest.json>
+ * Usage: bun scripts/build.mjs <content/manifest.json>
  *
  * "Hydration" here means resolving every slide's async/server-side content
  * ahead of time so render.mjs's later page.pdf()/screenshot() pass is a pure,
@@ -31,7 +31,7 @@ const ROOT = resolve(__dirname, '..');
 
 const [, , manifestArg] = process.argv;
 if (!manifestArg) {
-  console.error('Usage: node scripts/build.mjs <content/manifest.json>');
+  console.error('Usage: bun scripts/build.mjs <content/manifest.json>');
   process.exit(1);
 }
 
@@ -90,7 +90,7 @@ async function main() {
     console.log(`Wrote ${altPath}`);
   }
 
-  console.log(`Next: node scripts/render.mjs ${outPath.replace(ROOT + '/', '')}`);
+  console.log(`Next: bun scripts/render.mjs ${outPath.replace(ROOT + '/', '')}`);
 }
 
 main()
