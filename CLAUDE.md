@@ -153,6 +153,57 @@ every `y` from scratch (`spacing = h + desired_gap`, positions
 `start, start+spacing, start+2*spacing, …`) rather than reusing a
 previous layout's numbers.
 
+**Gotcha: a "smooth" easing curve on the dot is invisible if the actual
+pixel distance it travels is too small to show it.** After the fix above,
+node spacing left only ~23px of raw gap between adjacent cards, and
+`EDGE_GAP` padding on both ends of the connector ate 20px of that — the
+dot's real travel distance per hop was **3px**, over roughly 28 sampled
+frames. No easing curve, however correct, reads as anything but a
+teleport at that distance: the position is quantized to whole pixels, so
+most consecutive frames land on the identical pixel and then jump 1-2px,
+regardless of the underlying curve. This is why "the connectors don't
+follow physics" and "not smooth" can both be true complaints about the
+same output even after real per-hop easing (below) is already wired up —
+easing curves and travel *distance* are separate problems, and fixing
+only one leaves the other one dominant. Fix: widen the gap between nodes
+specifically to give the dot room to move (here, card height 150→130px,
+gap 23px→47px, `EDGE_GAP` 10→8px, netting roughly 31px of real travel per
+hop) — confirmed by measuring the dot's actual per-frame pixel position
+in a real decoded GIF (see "Verify visually" below), not by eyeballing a
+still frame, since a still frame can't show whether motion was smooth.
+
+**The dot's motion is eased per hop, not one linear constant-velocity
+stretch across the whole journey** — a real flow-diagram "packet"
+decelerates into a node and accelerates back out, it doesn't glide at a
+fixed speed the entire way. CSS lets an individual `@keyframes` stop
+declare its own `animation-timing-function`, which sets the easing curve
+for the *interval ending at that stop* — so `buildFlowGifHtml()`'s
+`travelStops` places one keyframe at each node's arrival instant
+(`offset-distance` = that node's index fraction of the total path, since
+all hops are equal length) carrying a `cubic-bezier(0.45, 0, 0.55, 1)`
+ease-in-out, rather than the two-keyframe linear stretch an earlier
+version used. The node glow pulse switched from `linear` to `ease` for
+the same reason — a hard-edged linear glow-in/glow-out reads mechanical
+next to an eased dot. (The marching-ants dash animations, `march`/
+`march-branch`, stay `linear` on purpose — a conveyor-belt dash pattern
+is *supposed* to move at constant speed; only the discrete node-to-node
+hop benefits from easing.)
+
+**The empty space beside the node column is filled with a "Live Status"
+panel tied to real pipeline state, not decoration.** An earlier version
+left roughly half the canvas empty for most of the loop (the four Jev
+judgment chips only appeared briefly, floating unattached mid-canvas,
+near the `jev` node). Replaced with a persistent panel listing every
+node's label as a row that ticks on — checkmark dot + text, popping in
+with a spring-like `cubic-bezier(0.34, 1.56, 0.64, 1)` overshoot ease,
+then staying lit (same "persist, don't fade" rule as everything else in
+this scene) — at the exact instant the dot arrives at that step (shares
+the same `arrivalPct()` timing the node glow pulse and dot travel use, so
+all three stay in sync off one source of truth). The four Jev checks
+render as indented sub-rows directly under the "AI Judge" row instead of
+a separate floating widget — one coherent list instead of two competing
+elements fighting for the same visual space.
+
 **Two more real gotchas hit wiring vendored icons into an SVG-in-SVG
 scene, both again only visible by rendering and looking:**
 
@@ -226,17 +277,18 @@ is correct here: the dot should only ever be visible while actually
 traversing a connector, and disappear the instant it would otherwise be
 "inside" a node.
 
-**Chips persist once shown, with continued idle motion, instead of
-fading back out.** The four judgment-check chips represent things that
-stay true for the rest of the pipeline run once Jev has answered them,
-not a transient tooltip — fading them out after the dot moved past `jev`
-was wrong regardless of how it looked. Each chip's `@keyframes` now has
-one entrance (fade/scale in, staggered per chip) followed by several
-idle "bob" keyframe stops running to 100% (a few px of `sin()`-phased
-`translateY`, each chip's phase offset by index so they don't move in
-lockstep) — real per-chip keyframes computed at build time, since a CSS
-animation can't do the trig itself. They still reset at the loop seam
-(next iteration's 0% keyframe), which is an acceptable hard cut at a GIF
+**Chip/status rows persist once shown instead of fading back out.** The
+four judgment checks (and every other row in the "Live Status" panel, see
+above) represent things that stay true for the rest of the pipeline run
+once reached, not a transient tooltip — fading a row out after the dot
+moved past its node was wrong regardless of how it looked. This started
+as a chip-specific fix (floating chips got a fade-in-then-idle-bob
+`@keyframes` set, computed per chip with `sin()`-phased motion since a
+CSS animation can't do the trig itself) and carried forward unchanged in
+spirit when chips were folded into the status panel: every row's
+`statusRow-N` keyframes hold `opacity: 1` from its arrival instant to
+100%, never fading back to 0. Rows still reset at the loop seam (next
+iteration's own 0% keyframe), which is an acceptable hard cut at a GIF
 loop boundary, same as the dot's own jump back to the first node.
 
 **GIF's frame delay is stored in 1/100s units, so true 60fps (16.67ms/

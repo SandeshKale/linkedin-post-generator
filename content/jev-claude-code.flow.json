@@ -4,15 +4,15 @@
   "brandBadge": "anthropic",
   "brandBadgeLabel": "Claude Code",
   "nodes": [
-    { "id": "manifest", "x": 80, "y": 245, "w": 400, "h": 150, "label": "Content Draft", "icon": "file-text" },
-    { "id": "gate", "x": 80, "y": 418, "w": 400, "h": 150, "label": "Quality Check", "logo": "bun" },
-    { "id": "jev", "x": 80, "y": 591, "w": 400, "h": 150, "label": "AI Judge", "icon": "brain" },
-    { "id": "build", "x": 80, "y": 764, "w": 400, "h": 150, "label": "Build Page", "logo": "bun" },
-    { "id": "render", "x": 80, "y": 937, "w": 400, "h": 150, "label": "Render Image", "logo": "playwright" },
-    { "id": "pdf", "x": 80, "y": 1110, "w": 400, "h": 150, "label": "Final Post", "icon": "stack-2" }
+    { "id": "manifest", "x": 80, "y": 245, "w": 400, "h": 130, "label": "Content Draft", "icon": "file-text" },
+    { "id": "gate", "x": 80, "y": 422, "w": 400, "h": 130, "label": "Quality Check", "logo": "bun" },
+    { "id": "jev", "x": 80, "y": 599, "w": 400, "h": 130, "label": "AI Judge", "icon": "brain" },
+    { "id": "build", "x": 80, "y": 776, "w": 400, "h": 130, "label": "Build Page", "logo": "bun" },
+    { "id": "render", "x": 80, "y": 953, "w": 400, "h": 130, "label": "Render Image", "logo": "playwright" },
+    { "id": "pdf", "x": 80, "y": 1130, "w": 400, "h": 130, "label": "Final Post", "icon": "stack-2" }
   ],
   "branchFrom": "jev",
-  "branch": { "x": 560, "y": 1110, "w": 340, "h": 110, "label": "Needs a Fix", "icon": "alert-triangle" },
+  "branch": { "x": 560, "y": 1130, "w": 340, "h": 100, "label": "Needs a Fix", "icon": "alert-triangle" },
   "chipsAt": "jev",
   "chips": [
     { "label": "Strong hook?", "icon": "target" },

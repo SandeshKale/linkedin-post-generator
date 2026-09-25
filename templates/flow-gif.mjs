@@ -82,11 +82,14 @@ function iconAt(svg, x, y, size, colorVar) {
  *   `branchFrom` with a static, muted, differently-colored dashed line —
  *   never visited by the traveling dot.
  * @param {string} [opts.branchFrom] id of the main-path node the branch leaves from.
- * @param {{label:string, icon?:string}[]} [opts.chips] Small labels that fade
- *   in/out around the node at `chipsAt` while the dot dwells there — used
- *   here for "4 parallel judgments happen at once," which a single
- *   traveling dot can't show on its own.
- * @param {string} [opts.chipsAt] id of the node the chips cluster around.
+ * @param {{label:string, icon?:string}[]} [opts.chips] Extra facts that tick
+ *   on as indented sub-rows in the "Live Status" panel, right under the
+ *   node at `chipsAt`, at the instant the dot arrives there — used here for
+ *   "4 parallel judgments happen at once," which a single traveling dot
+ *   can't show on its own. `icon` is accepted but currently unused (the
+ *   panel renders every row, main or sub, as a checkmark dot + label for
+ *   visual consistency down the whole list).
+ * @param {string} [opts.chipsAt] id of the node the chip sub-rows nest under.
  * @param {number} [opts.loopMs] total loop duration in ms.
  * @param {string} [opts.brandBadge] Optional simple-icons name for a small
  *   real-logo badge in the scene header (e.g. 'anthropic' — this post is
@@ -117,7 +120,7 @@ export function buildFlowGifHtml({
   // an edge connects two node BOUNDARIES, never passes through a node's
   // interior, and shows its direction with an arrowhead at the target
   // end. Each segment below gets exactly that.
-  const EDGE_GAP = 10;
+  const EDGE_GAP = 8;
   const segments = nodes.slice(0, -1).map((n, i) => {
     const next = nodes[i + 1];
     return { x: lineX, y1: n.y + n.h + EDGE_GAP, y2: next.y - EDGE_GAP };
@@ -135,9 +138,15 @@ export function buildFlowGifHtml({
   // the remaining 20% — a deliberate pause so a viewer scrubbing the GIF
   // (or just glancing at a stopped frame) reads "arrived," not "mid-motion."
   const TRAVEL_FRACTION = 0.8;
+  // Each node's arrival instant along the shared timeline — reused by the
+  // dot's own travel keyframes below, the node glow pulse, and the status
+  // panel's row-reveal timing, so all three stay in sync off one source
+  // of truth instead of three separately-tuned numbers.
+  const arrivalPct = (i) => (i / (nodes.length - 1)) * TRAVEL_FRACTION * 100;
+
   const nodePulseKeyframes = nodes
     .map((n, i) => {
-      const centerPct = (i / (nodes.length - 1)) * TRAVEL_FRACTION * 100;
+      const centerPct = arrivalPct(i);
       const before = Math.max(0, centerPct - 4).toFixed(2);
       const after = Math.min(100, centerPct + 6).toFixed(2);
       return `
@@ -149,44 +158,26 @@ export function buildFlowGifHtml({
     })
     .join('\n');
 
+  // The dot's own motion, eased per hop rather than one constant-velocity
+  // linear stretch across the whole journey — a real flow-diagram "packet"
+  // decelerates into a node and accelerates back out, it doesn't glide at
+  // a fixed speed the entire way. CSS lets a `@keyframes` stop declare its
+  // own `animation-timing-function`, which sets the easing curve for the
+  // interval ENDING at that stop — so each node's arrival keyframe below
+  // carries an ease-in-out curve for the hop leading into it.
+  const travelStops = nodes
+    .map((n, i) => {
+      const t = arrivalPct(i).toFixed(2);
+      const dist = ((i / (nodes.length - 1)) * 100).toFixed(2);
+      return `${t}% { offset-distance: ${dist}%; animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }`;
+    })
+    .join('\n    ');
+
   const chipCount = chips.length;
   const chipNode = nodes.find((n) => n.id === chipsAt);
-  const chipCenterPct = chipNode
-    ? (nodes.findIndex((n) => n.id === chipsAt) / (nodes.length - 1)) * TRAVEL_FRACTION * 100
+  const chipWindowStart = chipNode
+    ? Math.max(0, arrivalPct(nodes.findIndex((n) => n.id === chipsAt)) - 6)
     : 0;
-  const chipWindowStart = Math.max(0, chipCenterPct - 6);
-  const CHIP_W = 250;
-  const CHIP_H = 40;
-  // Chips enter once, staggered, then STAY on screen for the rest of the
-  // loop instead of fading back out — they represent the four judgments
-  // Jev actually returns, which remain true for the rest of the pipeline
-  // run, not just the instant the dot passes through. "Stay but keep
-  // moving" is a gentle continuous bob after the entrance settles, each
-  // chip on its own phase/period so they don't move in lockstep — cheap
-  // motion via `sin()` in the keyframe math below, real per-chip
-  // keyframes since CSS animations can't compute this at runtime.
-  const chipKeyframes = chips
-    .map((_, i) => {
-      const stagger = chipCount > 1 ? (6 * i) / chipCount : 0;
-      const inAt = (chipWindowStart + stagger).toFixed(2);
-      const settleAt = (chipWindowStart + stagger + 5).toFixed(2);
-      // Idle bob: 5 evenly-spaced stops from settle to loop end, each
-      // chip's phase offset by its index so the row doesn't bob in unison.
-      const bobStops = 6;
-      const phase = (i / Math.max(1, chipCount)) * Math.PI * 2;
-      const idle = Array.from({ length: bobStops }, (_, s) => {
-        const t = Number(settleAt) + ((100 - Number(settleAt)) * (s + 1)) / bobStops;
-        const y = Math.sin(phase + (s + 1) * 1.1) * 3.5;
-        return `${t.toFixed(2)}% { opacity: 1; transform: translateY(${y.toFixed(2)}px) scale(1); }`;
-      }).join('\n          ');
-      return `
-        @keyframes chip-${i} {
-          0%, ${inAt}% { opacity: 0; transform: translateY(6px) scale(0.9); }
-          ${settleAt}% { opacity: 1; transform: translateY(0) scale(1); }
-          ${idle}
-        }`;
-    })
-    .join('\n');
 
   // Icon-over-label card, not a horizontal filename pill — a general
   // LinkedIn audience doesn't know what "quality-gate.mjs" is, but a big
@@ -200,9 +191,9 @@ export function buildFlowGifHtml({
   // directly on the diagram's own background). A plain `icon` (no logo)
   // is the fallback primary visual, tinted via currentColor since
   // Tabler's outline style already reads fine directly on dark.
-  const LOGO_BADGE = 88;
-  const LOGO_SIZE = 54;
-  const ICON_SIZE = 52;
+  const LOGO_BADGE = 82;
+  const LOGO_SIZE = 50;
+  const ICON_SIZE = 48;
   const ICON_CENTER_Y = 12 + LOGO_BADGE / 2;
   const STEP_R = 24;
 
@@ -232,7 +223,7 @@ export function buildFlowGifHtml({
     </g>`;
       const labelY = ICON_CENTER_Y + LOGO_BADGE / 2 + (n.h - (ICON_CENTER_Y + LOGO_BADGE / 2)) / 2;
       return `
-    <g class="node" style="animation: pulse-${n.id} ${loopMs}ms linear infinite;"
+    <g class="node" style="animation: pulse-${n.id} ${loopMs}ms ease infinite;"
        transform="translate(${n.x}, ${n.y})">
       <rect width="${n.w}" height="${n.h}" rx="20" />
       ${logoEl}
@@ -243,28 +234,74 @@ export function buildFlowGifHtml({
     })
     .join('\n');
 
-  const chipEls = chips
-    .map((c, i) => {
-      const cx = chipNode ? chipNode.x + chipNode.w + 36 : 0;
-      const cy = chipNode ? chipNode.y + i * 50 - ((chipCount - 1) * 50) / 2 + chipNode.h / 2 - CHIP_H / 2 : 0;
-      const hasIcon = Boolean(c.icon);
-      const chipIconSize = 18;
-      const textX = hasIcon ? chipIconSize + 20 : 16;
-      const chipIconEl = hasIcon ? iconAt(icon(c.icon), 12, CHIP_H / 2 - chipIconSize / 2, chipIconSize, 'var(--accent)') : '';
-      // Two nested groups on purpose: a CSS `transform` animation (below)
-      // completely replaces an element's SVG transform attribute rather than
-      // composing with it, so the position translate lives on an outer,
-      // unanimated <g> and only the inner one gets the fade/scale keyframes.
+  // Persistent "Live Status" panel — fills the dead space beside the node
+  // column with content actually tied to pipeline progress, not
+  // decoration: one row per node label, ticking on (checkmark dot +
+  // label, popping in with a spring-like ease then staying lit — same
+  // "persist once shown" rule as everything else in this scene) at the
+  // exact instant the dot arrives at that step, plus the four Jev
+  // judgment checks nested as indented sub-rows right under the node
+  // they belong to, instead of floating separately mid-canvas competing
+  // for the same space.
+  const PANEL_X = 560;
+  const PANEL_W = 420;
+  const PANEL_Y = nodes[0].y;
+  const ROW_H = 58;
+  const SUB_ROW_H = 42;
+  const PANEL_PAD_TOP = 70;
+
+  let cursorY = 0;
+  const statusRows = [];
+  nodes.forEach((n, i) => {
+    statusRows.push({ y: cursorY, label: n.label, pct: arrivalPct(i), sub: false });
+    cursorY += ROW_H;
+    if (n.id === chipsAt) {
+      chips.forEach((c, j) => {
+        const stagger = chipCount > 1 ? (6 * j) / chipCount : 0;
+        statusRows.push({ y: cursorY, label: c.label, pct: chipWindowStart + stagger + 5, sub: true });
+        cursorY += SUB_ROW_H;
+      });
+    }
+  });
+  const PANEL_H = cursorY + PANEL_PAD_TOP + 26;
+
+  const statusKeyframes = statusRows
+    .map((row, idx) => {
+      const before = Math.max(0, row.pct - 3).toFixed(2);
+      const at = row.pct.toFixed(2);
       return `
-    <g transform="translate(${cx}, ${cy})">
-      <g class="chip" style="animation: chip-${i} ${loopMs}ms linear infinite;">
-        <rect width="${CHIP_W}" height="${CHIP_H}" rx="${CHIP_H / 2}" />
-        ${chipIconEl}
-        <text x="${textX}" y="${CHIP_H / 2}" dominant-baseline="middle">${esc(c.label)}</text>
+        @keyframes statusRow-${idx} {
+          0%, ${before}% { opacity: 0; transform: scale(0.7); }
+          ${at}%, 100% { opacity: 1; transform: scale(1); }
+        }`;
+    })
+    .join('\n');
+
+  const statusRowEls = statusRows
+    .map((row, idx) => {
+      const indent = row.sub ? 30 : 0;
+      const dotR = row.sub ? 5 : 7;
+      const fontSize = row.sub ? 16 : 19;
+      const textFill = row.sub ? 'var(--accent)' : 'var(--text)';
+      return `
+    <g transform="translate(${indent}, ${row.y})">
+      <g class="status-row" style="animation: statusRow-${idx} ${loopMs}ms cubic-bezier(0.34, 1.56, 0.64, 1) infinite; transform-origin: 8px 0px;">
+        <circle class="status-dot" cx="8" cy="0" r="${dotR}" />
+        <text x="26" y="1" dominant-baseline="middle" font-size="${fontSize}" fill="${textFill}">${esc(row.label)}</text>
       </g>
     </g>`;
     })
     .join('\n');
+
+  const statusPanelEl = `
+    <g transform="translate(${PANEL_X}, ${PANEL_Y})">
+      <rect class="status-panel" width="${PANEL_W}" height="${PANEL_H}" rx="22" />
+      <text class="status-panel-title" x="28" y="38">Live Status</text>
+      <line class="status-panel-rule" x1="28" y1="54" x2="${PANEL_W - 28}" y2="54" />
+      <g transform="translate(28, ${PANEL_PAD_TOP})">
+        ${statusRowEls}
+      </g>
+    </g>`;
 
   const branchPath =
     branch && branchFrom
@@ -413,9 +450,12 @@ export function buildFlowGifHtml({
     offset-path: path('${dotPathD}');
     animation: travel ${loopMs}ms linear infinite;
   }
+  /* Eased per hop (see travelStops above), not one constant-velocity
+     linear stretch across the whole journey — decelerating into each
+     node and accelerating back out, the way an actual flow-diagram
+     "packet" moves rather than gliding at a fixed speed throughout. */
   @keyframes travel {
-    0% { offset-distance: 0%; }
-    ${(TRAVEL_FRACTION * 100).toFixed(2)}% { offset-distance: 100%; }
+    ${travelStops}
     100% { offset-distance: 100%; }
   }
 
@@ -447,9 +487,15 @@ export function buildFlowGifHtml({
   }
   ${nodePulseKeyframes}
 
-  .chip rect { fill: rgba(63, 208, 201, 0.12); stroke: var(--accent); stroke-width: 1.5; }
-  .chip text { fill: var(--accent); font-family: 'Inter', sans-serif; font-size: 17px; font-weight: 600; }
-  ${chipKeyframes}
+  .status-panel { fill: var(--card); stroke: var(--border); stroke-width: 2; }
+  .status-panel-title {
+    fill: var(--text); font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px; font-weight: 700;
+  }
+  .status-panel-rule { stroke: var(--border); stroke-width: 1; }
+  .status-row text { font-family: 'Inter', sans-serif; font-weight: 600; }
+  .status-dot { fill: var(--accent); }
+  ${statusKeyframes}
 
   .branch-line {
     fill: none; stroke: var(--warn); stroke-width: 3;
@@ -478,7 +524,7 @@ export function buildFlowGifHtml({
       ${branchPath}
       <circle class="dot" r="14" />
       ${nodeEls}
-      ${chipEls}
+      ${statusPanelEl}
     </svg>
   </div>
 </body>
