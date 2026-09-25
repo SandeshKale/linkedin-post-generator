@@ -10,6 +10,15 @@
 // see scripts/gif.mjs's own comment for why that's the load-bearing trick
 // that makes a *reproducible* GIF possible instead of a live, non-
 // deterministic screen recording.
+//
+// Nodes/chips are real vendored art, not just colored boxes: `icon` pulls
+// a Tabler outline icon (via scripts/icons.mjs::icon()) and `brand` pulls
+// a real product/brand mark (::brandIcon(), assets/icons/simple-icons,
+// CC0). Both come back as full `<svg>...</svg>` strings; nested `<svg>`
+// inside a parent `<svg>` is valid per spec (it establishes its own
+// viewport), so they're dropped in directly rather than re-parsed.
+import { icon, brandIcon } from '../scripts/icons.mjs';
+
 const PAGE_W = 1080;
 const PAGE_H = 1350;
 
@@ -17,25 +26,79 @@ function esc(s = '') {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/** Patches only the width/height on a vendored icon's own outer <svg> tag,
+ * leaving every other attribute (viewBox, and critically `fill`/`stroke`)
+ * untouched. This matters because the two vendored sets disagree on both
+ * sizing AND color convention: Tabler icons declare width="24" height="24"
+ * *and* fill="none" stroke="currentColor" on their own <svg> root (the
+ * paths have no color of their own, they inherit that root's stroke);
+ * simple-icons brand marks declare neither width/height nor stroke, just
+ * a viewBox and paths with no explicit fill (initial value: black).
+ * Discarding the original tag entirely (an earlier version of this
+ * function did) silently drops Tabler's fill="none" stroke="currentColor"
+ * too, turning every outline icon into a solid black blob — caught only
+ * by rendering and looking, not by reading the generated markup. Leaving
+ * width/height unset instead (simple-icons' actual bug) makes a nested
+ * `<svg>` fall back to the browser's default replaced-element box (300x150
+ * CSS px) rather than its viewBox, rendering enormous. Patching just those
+ * two attributes in place fixes both without disturbing either set's own
+ * color convention.
+ */
+function sizedIcon(svg, size) {
+  return svg.replace(/<svg([^>]*)>/, (_, attrs) => {
+    const withoutSize = attrs.replace(/\s(width|height)="[^"]*"/g, '');
+    return `<svg${withoutSize} width="${size}" height="${size}">`;
+  });
+}
+
+/** A vendored icon, sized/positioned via a wrapping <g> (see module comment
+ * for why nested transforms have to live one level up from any CSS-animated
+ * element). `colorVar` only takes effect on icons that actually reference
+ * currentColor (Tabler's stroke, or a brand mark forced via the
+ * `.brand-mark svg { fill: currentColor }` rule below). */
+function iconAt(svg, x, y, size, colorVar) {
+  return `<g transform="translate(${x}, ${y})" style="color: ${colorVar};">${sizedIcon(svg, size)}</g>`;
+}
+
 /**
  * @param {object} opts
  * @param {string} opts.title
- * @param {{id:string, x:number, y:number, w:number, h:number, label:string}[]} opts.nodes
+ * @param {{id:string, x:number, y:number, w:number, h:number, label:string, icon?:string, brand?:string}[]} opts.nodes
  *   Main-path nodes, in travel order — the traveling dot visits them in
- *   array order, evenly spaced across the first 80% of `loopMs`.
- * @param {{x:number, y:number, w:number, h:number, label:string}} [opts.branch]
+ *   array order, evenly spaced across the first 80% of `loopMs`. `icon` is
+ *   a Tabler name (assets/icons/tabler/), rendered as a left-aligned badge
+ *   inside the node; `brand` is a real product mark (assets/icons/simple-
+ *   icons/) shown small and dim in the node's bottom-right corner — use it
+ *   only where it's factually true (e.g. a `.mjs` node really is Node.js/
+ *   JavaScript), never as decoration.
+ * @param {{x:number, y:number, w:number, h:number, label:string, icon?:string}} [opts.branch]
  *   One optional off-path node (e.g. the "rejected" branch), connected from
  *   `branchFrom` with a static, muted, differently-colored dashed line —
  *   never visited by the traveling dot.
  * @param {string} [opts.branchFrom] id of the main-path node the branch leaves from.
- * @param {{label:string}[]} [opts.chips] Small labels that fade in/out around
- *   the node at `chipsAt` while the dot dwells there — used here for "4
- *   parallel judgments happen at once," which a single traveling dot can't
- *   show on its own.
+ * @param {{label:string, icon?:string}[]} [opts.chips] Small labels that fade
+ *   in/out around the node at `chipsAt` while the dot dwells there — used
+ *   here for "4 parallel judgments happen at once," which a single
+ *   traveling dot can't show on its own.
  * @param {string} [opts.chipsAt] id of the node the chips cluster around.
  * @param {number} [opts.loopMs] total loop duration in ms.
+ * @param {string} [opts.brandBadge] Optional simple-icons name for a small
+ *   real-logo badge in the scene header (e.g. 'anthropic' — this post is
+ *   literally about Claude Code, so crediting the actual mark beats a
+ *   generic robot icon).
+ * @param {string} [opts.brandBadgeLabel] Text next to `brandBadge`.
  */
-export function buildFlowGifHtml({ title, nodes, branch, branchFrom, chips = [], chipsAt, loopMs = 4000 }) {
+export function buildFlowGifHtml({
+  title,
+  nodes,
+  branch,
+  branchFrom,
+  chips = [],
+  chipsAt,
+  loopMs = 4000,
+  brandBadge,
+  brandBadgeLabel,
+}) {
   const centerX = (n) => n.x + n.w / 2;
   const first = nodes[0];
   const last = nodes[nodes.length - 1];
@@ -68,6 +131,8 @@ export function buildFlowGifHtml({ title, nodes, branch, branchFrom, chips = [],
     : 0;
   const chipWindowStart = Math.max(0, chipCenterPct - 6);
   const chipWindowEnd = Math.min(100, chipCenterPct + 10);
+  const CHIP_W = 250;
+  const CHIP_H = 40;
   const chipKeyframes = chips
     .map((_, i) => {
       const span = chipWindowEnd - chipWindowStart;
@@ -84,30 +149,56 @@ export function buildFlowGifHtml({ title, nodes, branch, branchFrom, chips = [],
     })
     .join('\n');
 
+  const ICON_SIZE = 30;
+  const ICON_PAD = 20;
+  const BRAND_SIZE = 20;
+
   const nodeEls = nodes
-    .map(
-      (n) => `
+    .map((n) => {
+      const hasIcon = Boolean(n.icon);
+      const textX = hasIcon ? ICON_PAD * 2 + ICON_SIZE : n.w / 2;
+      const textAnchor = hasIcon ? 'start' : 'middle';
+      const iconEl = hasIcon
+        ? iconAt(icon(n.icon), ICON_PAD, n.h / 2 - ICON_SIZE / 2, ICON_SIZE, 'var(--accent)')
+        : '';
+      const brandEl = n.brand
+        ? `<g class="brand-mark">${iconAt(
+            brandIcon(n.brand),
+            n.w - BRAND_SIZE - 16,
+            n.h - BRAND_SIZE - 14,
+            BRAND_SIZE,
+            'var(--muted)'
+          )}</g>`
+        : '';
+      return `
     <g class="node" style="animation: pulse-${n.id} ${loopMs}ms linear infinite;"
        transform="translate(${n.x}, ${n.y})">
       <rect width="${n.w}" height="${n.h}" rx="18" />
-      <text x="${n.w / 2}" y="${n.h / 2}" text-anchor="middle" dominant-baseline="middle">${esc(n.label)}</text>
-    </g>`
-    )
+      ${iconEl}
+      <text x="${textX}" y="${n.h / 2}" text-anchor="${textAnchor}" dominant-baseline="middle">${esc(n.label)}</text>
+      ${brandEl}
+    </g>`;
+    })
     .join('\n');
 
   const chipEls = chips
     .map((c, i) => {
       const cx = chipNode ? chipNode.x + chipNode.w + 36 : 0;
-      const cy = chipNode ? chipNode.y + i * 46 - (chipCount - 1) * 23 + chipNode.h / 2 : 0;
-      // Two nested groups on purpose: a CSS \`transform\` animation (below)
+      const cy = chipNode ? chipNode.y + i * 50 - ((chipCount - 1) * 50) / 2 + chipNode.h / 2 - CHIP_H / 2 : 0;
+      const hasIcon = Boolean(c.icon);
+      const chipIconSize = 18;
+      const textX = hasIcon ? chipIconSize + 20 : 16;
+      const chipIconEl = hasIcon ? iconAt(icon(c.icon), 12, CHIP_H / 2 - chipIconSize / 2, chipIconSize, 'var(--accent)') : '';
+      // Two nested groups on purpose: a CSS `transform` animation (below)
       // completely replaces an element's SVG transform attribute rather than
       // composing with it, so the position translate lives on an outer,
       // unanimated <g> and only the inner one gets the fade/scale keyframes.
       return `
     <g transform="translate(${cx}, ${cy})">
       <g class="chip" style="animation: chip-${i} ${loopMs}ms linear infinite;">
-        <rect width="220" height="36" rx="18" />
-        <text x="16" y="18" dominant-baseline="middle">${esc(c.label)}</text>
+        <rect width="${CHIP_W}" height="${CHIP_H}" rx="${CHIP_H / 2}" />
+        ${chipIconEl}
+        <text x="${textX}" y="${CHIP_H / 2}" dominant-baseline="middle">${esc(c.label)}</text>
       </g>
     </g>`;
     })
@@ -121,14 +212,26 @@ export function buildFlowGifHtml({ title, nodes, branch, branchFrom, chips = [],
           const fy = from.y + from.h / 2;
           const bx = branch.x;
           const by = branch.y + branch.h / 2;
+          const hasIcon = Boolean(branch.icon);
+          const textX = hasIcon ? ICON_PAD + 26 + 14 : branch.w / 2;
+          const textAnchor = hasIcon ? 'start' : 'middle';
+          const iconEl = hasIcon ? iconAt(icon(branch.icon), ICON_PAD, branch.h / 2 - 13, 26, 'var(--warn)') : '';
           return `
     <path class="branch-line" d="M ${fx},${fy} L ${bx},${by}" />
     <g class="branch-node" transform="translate(${branch.x}, ${branch.y})">
       <rect width="${branch.w}" height="${branch.h}" rx="16" />
-      <text x="${branch.w / 2}" y="${branch.h / 2}" text-anchor="middle" dominant-baseline="middle">${esc(branch.label)}</text>
+      ${iconEl}
+      <text x="${textX}" y="${branch.h / 2}" text-anchor="${textAnchor}" dominant-baseline="middle">${esc(branch.label)}</text>
     </g>`;
         })()
       : '';
+
+  const brandBadgeEl = brandBadge
+    ? `<div class="brand-badge">
+        <span class="brand-badge-icon">${brandIcon(brandBadge)}</span>
+        ${brandBadgeLabel ? `<span>${esc(brandBadgeLabel)}</span>` : ''}
+      </div>`
+    : '';
 
   return `<!doctype html>
 <html>
@@ -184,13 +287,26 @@ export function buildFlowGifHtml({ title, nodes, branch, branchFrom, chips = [],
     position: relative; z-index: 2;
     font-family: 'Space Grotesk', sans-serif;
     font-size: 44px; font-weight: 700; line-height: 1.15;
-    margin: 72px 72px 0 72px;
+    margin: 72px 240px 0 72px;
   }
+  .brand-badge {
+    position: absolute; z-index: 3; top: 72px; right: 72px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px; font-weight: 600;
+    color: var(--muted);
+  }
+  .brand-badge-icon { width: 18px; height: 18px; display: block; color: var(--text); }
+  .brand-badge-icon svg { width: 18px; height: 18px; display: block; fill: currentColor; }
 
   /* Absolutely positioned, not flowed after <h1> — otherwise the title's
      own flow height pushes every node coordinate down by that much,
      silently clipping the last node off the bottom of the canvas. */
-  svg { position: absolute; top: 0; left: 0; z-index: 1; display: block; }
+  svg.diagram { position: absolute; top: 0; left: 0; z-index: 1; display: block; }
 
   .spine {
     fill: none; stroke: var(--border); stroke-width: 4;
@@ -223,6 +339,8 @@ export function buildFlowGifHtml({ title, nodes, branch, branchFrom, chips = [],
     font-size: 22px;
     font-weight: 600;
   }
+  .node .brand-mark { opacity: 0.5; }
+  .node .brand-mark svg { fill: currentColor; }
   ${nodePulseKeyframes}
 
   .chip rect { fill: rgba(63, 208, 201, 0.12); stroke: var(--accent); stroke-width: 1.5; }
@@ -243,7 +361,8 @@ export function buildFlowGifHtml({ title, nodes, branch, branchFrom, chips = [],
   <div class="scene">
     <div class="bg-dots"></div>
     <h1>${esc(title)}</h1>
-    <svg viewBox="0 0 ${PAGE_W} ${PAGE_H}" width="${PAGE_W}" height="${PAGE_H}">
+    ${brandBadgeEl}
+    <svg class="diagram" viewBox="0 0 ${PAGE_W} ${PAGE_H}" width="${PAGE_W}" height="${PAGE_H}">
       <path class="spine" d="M ${lineX},${lineTop} L ${lineX},${lineBottom}" />
       ${branchPath}
       <circle class="dot" r="14" />

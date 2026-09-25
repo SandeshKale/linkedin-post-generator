@@ -13,7 +13,9 @@ import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ICONS_DIR = join(__dirname, '..', 'assets', 'icons', 'tabler');
+const BRAND_ICONS_DIR = join(__dirname, '..', 'assets', 'icons', 'simple-icons');
 const cache = new Map();
+const brandCache = new Map();
 
 /**
  * @param {string} name - file name (without .svg) under assets/icons/tabler/
@@ -24,4 +26,23 @@ export function icon(name) {
     cache.set(name, readFileSync(join(ICONS_DIR, `${name}.svg`), 'utf8'));
   }
   return cache.get(name);
+}
+
+/**
+ * Vendored real brand marks (assets/icons/simple-icons/*.svg, CC0 —
+ * see that directory's own LICENSE.md, no attribution required). Unlike
+ * `icon()`'s Tabler outline set, these ship as a single filled `<path>`
+ * with no `fill`/`stroke` attribute of their own (so they default to
+ * black) — callers must force `fill: currentColor` via CSS on the
+ * embedding element rather than relying on the file itself, same as this
+ * repo already does for every other vendored SVG asset (see "Typography"/
+ * icon vendoring notes in CLAUDE.md for the general pattern).
+ * @param {string} name - file name (without .svg) under assets/icons/simple-icons/
+ * @returns {string} raw <svg>...</svg> markup, fill defaults to black
+ */
+export function brandIcon(name) {
+  if (!brandCache.has(name)) {
+    brandCache.set(name, readFileSync(join(BRAND_ICONS_DIR, `${name}.svg`), 'utf8'));
+  }
+  return brandCache.get(name);
 }

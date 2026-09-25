@@ -86,10 +86,47 @@ bun scripts/gif.mjs output/<slug>/flow-scene.html output/<slug>/flow.gif [--dura
 - Frames are decoded with `pngjs` and encoded with `gifenc` (pure JS, no
   native deps — installs in well under a second on this sandbox's `bun`).
 
-**Two real gotchas hit while building this, both found by actually
-measuring pixel output, not by reading the generated markup or eyeballing
-a couple of preview crops** (see "Verify visually" in "Git / workflow
-conventions" — this applies just as hard to a GIF as to a carousel PNG):
+**Nodes carry real vendored art, not just labeled boxes** — a node's
+`icon` (Tabler, `scripts/icons.mjs::icon()`) and/or `brand` (a real
+product mark, `::brandIcon()`, `assets/icons/simple-icons/*.svg`, CC0, no
+attribution required) render as actual nested `<svg>` content inside the
+diagram's own `<svg>`, not decoration bolted on after the fact. Use
+`brand` only where it's literally true (a `.mjs` node really is a
+Node.js/JavaScript file — that's why those nodes carry the real Node.js
+mark, dim, bottom-right corner), never as generic flair; a `brandBadge` in
+the scene header works the same way (e.g. the real Anthropic mark on a
+post that's literally about Claude Code, not a generic robot icon).
+
+**Two more real gotchas hit wiring vendored icons into an SVG-in-SVG
+scene, both again only visible by rendering and looking:**
+
+3. **The two vendored icon sets disagree on both sizing and color
+   convention, and naively dropping either straight into a nested `<svg>`
+   breaks a different way.** Tabler icons declare `width="24" height="24"
+   fill="none" stroke="currentColor"` on their own `<svg>` root (the
+   `<path>`s carry no color of their own — they inherit that root's
+   stroke). `simple-icons` brand marks declare neither: no width/height,
+   and no stroke/fill on the path (initial SVG value: opaque black).
+   Stripping the original `<svg>` tag and wrapping with a fresh, bare one
+   (an earlier version of `templates/flow-gif.mjs::iconAt()` did exactly
+   this to fix problem 4 below) silently drops Tabler's own
+   `fill="none" stroke="currentColor"`, turning every outline icon into a
+   solid black blob. **Fix: patch only `width`/`height` on the icon's own
+   `<svg>` tag in place (regex, see `sizedIcon()`) — never discard the
+   rest of its attributes.**
+4. **A nested `<svg>` with no explicit `width`/`height` doesn't fall back
+   to its `viewBox` — it falls back to the browser's default
+   replaced-element box (300×150 CSS px)**, so a `simple-icons` mark
+   (viewBox-only, see above) dropped in raw renders roughly 12x its
+   intended size, not icon-sized. This is exactly why problem 3's fix has
+   to *add* explicit `width`/`height`, not merely preserve the original
+   tag as-is.
+
+**Two real gotchas hit building the animation/timing itself, both found by
+actually measuring pixel output, not by reading the generated markup or
+eyeballing a couple of preview crops** (see "Verify visually" in "Git /
+workflow conventions" — this applies just as hard to a GIF as to a
+carousel PNG):
 
 1. **A CSS `transform` animation completely replaces an SVG element's
    `transform` attribute instead of composing with it.** Positioning a
