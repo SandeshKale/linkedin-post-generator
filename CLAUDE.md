@@ -139,7 +139,8 @@ linkedin-post-generator/
 ├── scripts/
 │   ├── build.mjs           Manifest → self-contained HTML (the "compiler")
 │   ├── render.mjs          HTML → carousel.pdf + slide-NN.png (the "exporter")
-│   ├── mermaid.mjs         Diagram source → static <svg> string, pre-render helper
+│   ├── mermaid.mjs         Mermaid diagram engine → static <svg> string, pre-render helper
+│   ├── d2.mjs              D2 diagram engine (WASM, no browser) → static <svg> string — see "Diagram engines"
 │   ├── shiki.mjs           Code string → syntax-highlighted <pre> HTML, pre-render helper
 │   ├── manifest-schema.mjs Zod schema + parseManifest() — the JSON-shape guardrail
 │   ├── icons.mjs           Vendored Tabler icon loader (assets/icons/tabler/*.svg)
@@ -158,7 +159,7 @@ linkedin-post-generator/
 │   ├── animations/         From video-generator; NOT directly usable here — see "Asset library"
 │   └── VIDEO_GENERATOR_ATTRIBUTION.md   Per-source license table for the merged-in set
 ├── output/                 Generated, gitignored — carousel.html/.pdf, slide-NN.png, caption.md, alt-text.md per slug
-├── package.json            Deps: playwright, mermaid, shiki, zod, @typesafe-ai/sdk
+├── package.json            Deps: playwright, mermaid, @terrastruct/d2, shiki, zod, @typesafe-ai/sdk
 └── CLAUDE.md               This file
 ```
 
@@ -247,9 +248,13 @@ Slide types and their fields, all in `templates/carousel.mjs`'s
 `RENDERERS` map:
 
 - **`hook`** — `icon?`, `eyebrow?`, `headline`, `sub?`. Opening slide.
-- **`diagram`** — `icon?`, `heading?`, `mermaid` (Mermaid diagram source,
-  any supported diagram type), `mermaidTheme?` (defaults `'base'`, themed
-  to the palette below in `scripts/mermaid.mjs`).
+- **`diagram`** — `icon?`, `heading?`, `engine?` (`'mermaid'` default or
+  `'d2'` — see "Diagram engines" below for what each needs and why two
+  exist). Mermaid engine: `mermaid` (source, required), `mermaidTheme?`
+  (defaults `'base'`), `look?` (`'classic'` default or `'handDrawn'` —
+  reliable on simple diagrams only, see the Mermaid gotcha below). D2
+  engine: `d2` (source, required instead of `mermaid`), `d2ThemeId?`
+  (defaults `200`).
 - **`code`** — `heading?`, `lang` (any Shiki/TextMate grammar id, e.g.
   `typescript`, `python`, `bash`), `code`, `shikiTheme?` (defaults
   `github-dark-default`). No `icon` — a code slide's content is the visual.
@@ -403,7 +408,89 @@ adding a second theme (a `theme` field on the manifest selecting a second
 the existing one — don't silently reskin "Blueprint" out from under posts
 that already reference it.
 
+## Diagram engines
+
+A `diagram` slide's `engine` field picks between two genuinely distinct
+diagram engines — not a hypothetical extension point, both implemented and
+render-verified:
+
+- **`mermaid`** (default, `scripts/mermaid.mjs`) — requires the `mermaid`
+  field (source in Mermaid's own syntax). Runs inside a throwaway
+  Playwright page, same as always.
+- **`d2`** (`scripts/d2.mjs`) — requires the `d2` field (source in
+  [D2](https://d2lang.com) syntax) instead of `mermaid`; optional
+  `d2ThemeId` overrides the default theme (`200`, "Dark Mauve" — the
+  closest built-in D2 theme to this repo's palette; D2's own default is a
+  *white* canvas, which would sit as a bright rectangle inside a
+  near-black slide otherwise). Runs its compiler/renderer as WASM
+  **directly in Node — no browser at all**, unlike Mermaid. Always
+  rendered with `sketch: true`: that's the entire reason to reach for a
+  second engine instead of just using Mermaid's own `look` field (below) —
+  D2's sketch mode reliably wobbles every stroke, verified on a
+  multi-node cyclic flowchart, not just simple cases.
+
+**Both engines produce a plain `<svg>` string** consumed identically by
+`renderDiagram()` in `templates/carousel.mjs` — no template changes were
+needed to add D2; it drops into the same `.diagram-wrap.card` Mermaid
+already used, the same way the code slide's `pre.shiki` sits at its own
+tone inside the outer card.
+
+**D2-specific operational gotcha — this one matters, don't skip it if
+touching `scripts/d2.mjs`**: the `D2` class has **no exposed
+`dispose()`/`terminate()`/`close()` method** (confirmed against its
+`.d.ts` — only `compile()` and `render()` exist). A script that creates a
+`D2` instance and finishes all its real work will still **never exit on
+its own** — confirmed by watching a finished process sit alive at ~0% CPU
+indefinitely. `scripts/build.mjs`'s final `.finally()` therefore force-exits
+with `process.exit(process.exitCode || 0)` after every other async
+resource (the Mermaid/Playwright browser) is already closed — that call is
+load-bearing, not defensive boilerplate; removing it reintroduces the hang
+the moment any manifest uses `engine: "d2"`.
+
+**Why not Excalidraw too — researched, deliberately deferred, not
+forgotten**: the actual "in" hand-drawn diagram aesthetic right now, and
+there's even an official bridge for it —
+`@excalidraw/mermaid-to-excalidraw` parses ordinary Mermaid syntax into
+Excalidraw's element format, then `@excalidraw/utils`' `exportToSvg`
+renders it with Excalidraw's own (more polished, more consistent) sketchy
+renderer. Confirmed technically reachable: `parseMermaidToExcalidraw`
+throws `DOMPurify.addHook is not a function` when called from plain
+Node — it genuinely needs a real DOM, so it would need the same
+Playwright-page-injection pattern `scripts/mermaid.mjs` already uses, but
+bundled first (it's ESM-only, no prebuilt browser/UMD bundle ships in the
+package). That bundling step is exactly where this was deferred: ad hoc
+`npm install --no-save` calls for this package and its siblings
+repeatedly triggered npm's resolver into silently pruning *other* already-
+installed packages in the same tree (esbuild and `@excalidraw/utils` both
+vanished mid-session without any explicit uninstall) — a real
+reproducibility risk for a repo whose whole premise is deterministic
+builds. Worth finishing as a dedicated follow-up with its own careful,
+from-scratch install rather than rushed in on top of that instability.
+
 ## Mermaid diagram rendering gotcha
+
+**Hand-drawn `look` works reliably only on simple diagrams — verify
+visually before trusting it on a real one.** `look: 'handDrawn'` (Mermaid's
+own built-in rough.js-backed renderer, zero extra dependency) renders
+correctly — visibly wobbly strokes, clear hachure fill — on small,
+few-node test diagrams. On this repo's actual denser diagrams (6+ nodes,
+a cycle, multi-line labels) it degrades: zooming into a rendered PNG shows
+the hachure fill texture is still present but very faint, and the
+characteristic wobbly stroke on box borders mostly doesn't apply — boxes
+render with crisp, straight edges instead. This was **not** caught by
+inspecting the generated SVG markup (searching for `"hachure"` in the
+string is a dead end regardless of outcome — this Mermaid version's
+rough.js integration doesn't use that literal string anywhere, on
+either a working or degraded render, so a text search can't distinguish
+them) — it was only visible by rendering a real slide and zooming into
+the actual pixels, the same lesson as every other gotcha in this section.
+**If a post wants a reliably wobbly, fully hand-drawn diagram, use the
+`d2` engine instead** (above) — its sketch mode was verified wobbly on
+the same multi-node diagram where Mermaid's `look: 'handDrawn'` degraded.
+Keep `look: 'handDrawn'` for simple, few-node Mermaid diagrams only, where
+it was actually confirmed to work.
+
+
 
 `scripts/mermaid.mjs` intentionally does **not** set a custom
 `themeVariables.fontFamily` or `fontSize`. Both were tried and caused

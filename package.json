@@ -10,6 +10,7 @@
     "quality-gate": "node scripts/quality-gate.mjs"
   },
   "dependencies": {
+    "@terrastruct/d2": "^0.1.33",
     "@typesafe-ai/sdk": "^0.6.0",
     "mermaid": "^11.4.1",
     "playwright": "^1.56.0",

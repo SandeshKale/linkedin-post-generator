@@ -22,6 +22,7 @@ import { resolve, dirname, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildHtml } from '../templates/carousel.mjs';
 import { renderMermaid, closeMermaidBrowser } from './mermaid.mjs';
+import { renderD2 } from './d2.mjs';
 import { highlight } from './shiki.mjs';
 import { parseManifest } from './manifest-schema.mjs';
 
@@ -36,7 +37,10 @@ if (!manifestArg) {
 
 async function hydrateSlide(slide) {
   if (slide.type === 'diagram') {
-    const diagramSvg = await renderMermaid(slide.mermaid, { theme: slide.mermaidTheme || 'base' });
+    const diagramSvg =
+      slide.engine === 'd2'
+        ? await renderD2(slide.d2, { themeID: slide.d2ThemeId })
+        : await renderMermaid(slide.mermaid, { theme: slide.mermaidTheme || 'base', look: slide.look });
     return { ...slide, diagramSvg };
   }
   if (slide.type === 'code') {
@@ -94,4 +98,12 @@ main()
     console.error(err);
     process.exitCode = 1;
   })
-  .finally(closeMermaidBrowser);
+  .finally(closeMermaidBrowser)
+  // @terrastruct/d2 (scripts/d2.mjs) spins up a persistent WASM worker with
+  // no exposed dispose()/terminate() API — once a diagram slide uses the
+  // 'd2' engine, the process never exits on its own (confirmed: it sat
+  // alive, near-0% CPU, indefinitely after finishing all real work). Every
+  // other async resource here is already explicitly closed above, so a
+  // forced exit here only ever cuts off that one dangling D2 handle, never
+  // in-flight work.
+  .finally(() => process.exit(process.exitCode || 0));

@@ -38,13 +38,28 @@ const hookSlide = baseSlide.extend({
   sub: z.string().optional(),
 });
 
-const diagramSlide = baseSlide.extend({
+// Two diagram engines — see CLAUDE.md "Diagram engines" for the full
+// rationale. `mermaid` is required when engine is 'mermaid' (the default,
+// and the only engine every existing manifest uses); `d2` is required when
+// engine is 'd2'. Enforced below via superRefine rather than a nested
+// discriminated union, to avoid restructuring every existing diagram slide.
+const diagramSlideBase = baseSlide.extend({
   type: z.literal('diagram'),
   icon: iconName.optional(),
   heading: z.string().optional(),
-  mermaid: z.string().min(1),
+  engine: z.enum(['mermaid', 'd2']).default('mermaid'),
+  mermaid: z.string().min(1).optional(),
   mermaidTheme: z.string().optional(),
+  // 'handDrawn' switches on Mermaid's own built-in rough.js renderer —
+  // no new dependency, a real alternative look already in the box.
+  look: z.enum(['classic', 'handDrawn']).optional(),
+  d2: z.string().min(1).optional(),
+  d2ThemeId: z.number().optional(),
 });
+// discriminatedUnion needs a plain ZodObject per member, so the
+// engine/mermaid/d2 cross-check lives on manifestSchema's own superRefine
+// below instead of wrapping diagramSlideBase in .superRefine() here.
+const diagramSlide = diagramSlideBase;
 
 const codeSlide = baseSlide.extend({
   type: z.literal('code'),
@@ -99,18 +114,34 @@ const slideSchema = z.discriminatedUnion('type', [
   ctaSlide,
 ]);
 
-export const manifestSchema = z.object({
-  slug: z.string().regex(/^[a-z0-9-]+$/, 'slug must be lowercase kebab-case').optional(),
-  title: z.string().min(1),
-  author: z.string().optional(),
-  handle: z.string().optional(),
-  slides: z.array(slideSchema).min(1, 'manifest needs at least one slide'),
-  // Not rendered on any slide — the post's own text, kept in the same
-  // manifest as its media so one JSON file is the single source of truth
-  // for a post instead of a caption drifting in a separate untracked doc.
-  caption: z.string().optional(),
-  hashtags: z.array(z.string().min(1)).optional(),
-});
+export const manifestSchema = z
+  .object({
+    slug: z.string().regex(/^[a-z0-9-]+$/, 'slug must be lowercase kebab-case').optional(),
+    title: z.string().min(1),
+    author: z.string().optional(),
+    handle: z.string().optional(),
+    slides: z.array(slideSchema).min(1, 'manifest needs at least one slide'),
+    // Not rendered on any slide — the post's own text, kept in the same
+    // manifest as its media so one JSON file is the single source of truth
+    // for a post instead of a caption drifting in a separate untracked doc.
+    caption: z.string().optional(),
+    hashtags: z.array(z.string().min(1)).optional(),
+  })
+  .superRefine((manifest, ctx) => {
+    manifest.slides.forEach((slide, i) => {
+      if (slide.type !== 'diagram') return;
+      if (slide.engine === 'd2' && !slide.d2) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['slides', i, 'd2'], message: "required when engine is 'd2'" });
+      }
+      if (slide.engine === 'mermaid' && !slide.mermaid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['slides', i, 'mermaid'],
+          message: "required when engine is 'mermaid' (the default)",
+        });
+      }
+    });
+  });
 
 /**
  * @param {unknown} manifest - parsed JSON, not yet trusted

@@ -31,7 +31,11 @@ async function getMermaidSource() {
 
 /**
  * @param {string} definition - Mermaid diagram source (e.g. "graph TD; A-->B;")
- * @param {{theme?: string}} [opts]
+ * @param {{theme?: string, look?: 'classic'|'handDrawn'}} [opts] - `look:
+ *   'handDrawn'` switches Mermaid's own built-in rough.js-backed renderer on
+ *   (a real, zero-extra-dependency alternative visual language already
+ *   shipped in the vendored mermaid package — see CLAUDE.md "Diagram
+ *   engines"). Left at Mermaid's default ('classic') unless requested.
  * @returns {Promise<string>} raw <svg>...</svg> markup, ids namespaced per call
  */
 export async function renderMermaid(definition, opts = {}) {
@@ -42,11 +46,12 @@ export async function renderMermaid(definition, opts = {}) {
     await page.addScriptTag({ content: await getMermaidSource() });
     const id = `mmd-${Math.random().toString(36).slice(2)}`;
     const svg = await page.evaluate(
-      async ({ definition, id, theme }) => {
+      async ({ definition, id, theme, look }) => {
         // eslint-disable-next-line no-undef
         mermaid.initialize({
           startOnLoad: false,
           theme: theme || 'base',
+          look: look || 'classic',
           securityLevel: 'loose',
           themeVariables: {
             background: 'transparent',
@@ -62,7 +67,7 @@ export async function renderMermaid(definition, opts = {}) {
         const { svg } = await mermaid.render(id, definition);
         return svg;
       },
-      { definition, id, theme: opts.theme }
+      { definition, id, theme: opts.theme, look: opts.look }
     );
     return svg;
   } finally {
