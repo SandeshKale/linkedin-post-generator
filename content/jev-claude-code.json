@@ -1,63 +1,61 @@
 {
   "slug": "jev-claude-code",
-  "title": "How Jev Integration Makes Your Claude Code Pipeline Powerful",
+  "title": "Behind the Scenes: How Jev Judges My Claude Code Pipeline",
   "author": "Sandesh Kale",
   "handle": "GenAI Solutions Architect",
   "slides": [
     {
       "type": "hook",
       "icon": "robot",
-      "eyebrow": "AGENTIC PIPELINES",
-      "headline": "Claude Code didn't get smarter when I added more prompts.",
-      "sub": "It got smarter when I added a model whose only job is to say no.",
-      "alt": "Dark slide with a robot icon badge and eyebrow label 'AGENTIC PIPELINES'. Large headline: Claude Code didn't get smarter when I added more prompts. Subheading: It got smarter when I added a model whose only job is to say no."
+      "eyebrow": "Behind The Scenes",
+      "headline": "One API call judges 4 things about my content — using just 1,503 tokens.",
+      "sub": "Before a single slide of this carousel was allowed to render.",
+      "alt": "Dark slide with a robot icon badge and eyebrow label 'Behind The Scenes'. Large headline: One API call judges 4 things about my content — using just 1,503 tokens. Subheading: Before a single slide of this carousel was allowed to render."
     },
     {
       "type": "diagram",
       "icon": "hierarchy",
-      "heading": "Where the judgment layer actually sits",
+      "heading": "The Actual Flow, Named Step By Step",
       "engine": "mermaid",
-      "mermaid": "flowchart TD\n  A[manifest.json] --> B{quality-gate.mjs\\nJev judgment}\n  B -->|OK, confidence >= 0.6| C[build.mjs]\n  B -->|FLAG or REVIEW| D[Fix content first]\n  C --> E[render.mjs]\n  E --> F[carousel.pdf]",
-      "alt": "Flowchart: manifest.json feeds into quality-gate.mjs, labeled Jev judgment, which is a decision diamond. If OK with confidence at or above 0.6, it flows to build.mjs then render.mjs then carousel.pdf. If FLAGged or marked REVIEW, it routes instead to a 'fix content first' box, a dead end that never reaches build.mjs."
+      "mermaid": "flowchart TD\n  A[jev-claude-code.json] --> B[quality-gate.mjs builds state]\n  B --> C[Jev systemOne — 4 judgments]\n  C -->|confidence >= 0.6, OK| D[build.mjs]\n  C -->|FLAG or REVIEW| E[Fix content first]\n  D --> F[render.mjs]\n  F --> G[carousel.pdf]",
+      "alt": "Flowchart of six named nodes: jev-claude-code.json flows into quality-gate.mjs, which builds a state object and passes it to Jev's systemOne call running four judgments. From there two branches: confidence at or above 0.6 with an OK verdict flows to build.mjs, then render.mjs, then carousel.pdf; a FLAG or REVIEW verdict instead routes to a dead-end box labeled 'Fix content first', which never reaches build.mjs."
     },
     {
       "type": "code",
-      "heading": "The confidence gate, in code",
+      "heading": "The Confidence Math, In Code",
       "lang": "javascript",
       "code": "// Score answers carry confidence directly.\n// Noul (yes/no) answers derive it from\n// distance-from-0.5 — near 0.5 means unsure.\nconst FLOOR = 0.6;\n\nfunction verdict(row) {\n  if (row.confidence < FLOOR) return 'REVIEW';\n  return row.bad ? 'FLAG' : 'OK';\n}\n\n// hook_strength      -> Score, 4 levels\n// cta_is_specific     -> Noul\n// jargon_risk          -> Noul, all slides\n// diagram_readability -> Score, per diagram\n// One systemOne() call. Every question in parallel.",
-      "alt": "Code slide showing a JavaScript snippet: a FLOOR constant of 0.6, a verdict function that returns REVIEW when confidence is below the floor and otherwise FLAG or OK, followed by comments listing four Jev questions — hook_strength as a 4-level Score, cta_is_specific and jargon_risk as Noul, and diagram_readability as a per-diagram Score — all run in one systemOne call."
+      "alt": "Code slide showing a JavaScript snippet: a FLOOR constant of 0.6, a verdict function that returns REVIEW when confidence is below the floor and otherwise FLAG or OK, followed by comments listing the four real Jev questions this pipeline runs — hook_strength as a 4-level Score, cta_is_specific and jargon_risk as Noul, and diagram_readability as a per-diagram Score — all in one systemOne call."
     },
     {
       "type": "stat",
-      "icon": "chart-bar",
-      "value": "99%",
-      "label": "Confidence Jev gave for switching this repo to bun",
-      "context": "Not a blog-post ranking — real cold and warm install times, measured in this exact sandbox, fed to Jev as a structured choice question.",
+      "icon": "api",
+      "value": "1,503",
+      "label": "Tokens spent judging this entire carousel",
+      "context": "Four questions — hook strength, CTA specificity, jargon risk, diagram readability — evaluated in parallel, in one systemOne() call, before build.mjs writes a single line of HTML.",
       "compare": [
-        { "label": "npm — cold install, 7.2s", "value": 100 },
-        { "label": "bun — cold install, 3.43s (0.26s warm repeat)", "value": 48, "highlight": true }
+        { "label": "Input tokens — full state + 4 questions (1,503)", "value": 100 },
+        { "label": "Output tokens — 4 verdicts back (76)", "value": 6, "highlight": true }
       ],
-      "alt": "Stat slide with a large gradient '99%' figure, labeled as the confidence Jev gave for switching this repo's package manager to bun. Below it, a two-row horizontal bar chart compares npm's 7.2 second cold install against bun's 3.43 second cold install (highlighted, noted as 0.26 seconds on a warm repeat install), with bun's bar roughly half the length of npm's."
+      "alt": "Stat slide with a large gradient figure reading 1,503, labeled as the tokens spent judging this entire carousel. Below it, a two-row horizontal bar chart compares 1,503 input tokens (a full-length bar) against 76 output tokens (a short highlighted bar), showing how much smaller the model's verdicts are than the context it was given."
     },
     {
       "type": "list",
-      "heading": "Four questions, one Jev call, every manifest",
+      "heading": "Why This Actually Works",
       "items": [
-        { "icon": "target", "text": "hook_strength — will this actually stop the scroll?" },
-        { "icon": "message-circle", "text": "cta_is_specific — or is it generic follow-me boilerplate?" },
-        { "icon": "alert-triangle", "text": "jargon_risk — undefined acronyms your audience won't know?" },
-        { "icon": "chart-dots", "text": "diagram_readability — legible at feed-thumbnail size, not full-screen?" }
+        { "icon": "circle-check", "text": "Judge, not linter — a schema catches malformed JSON; Jev catches a boring hook the schema would happily approve." },
+        { "icon": "circle-check", "text": "Confidence over answers — a low-confidence 'good' grade still gets flagged for REVIEW, never trusted blindly." },
+        { "icon": "circle-check", "text": "A separate stage, not middleware — runs before build.mjs, never inside the deterministic render path, so render.mjs stays fully offline whether or not the gate ever runs." }
       ],
-      "alt": "List slide titled 'Four questions, one Jev call, every manifest' with four icon-badged rows: a target icon for hook strength, a message icon for CTA specificity, a warning triangle for jargon risk, and a dotted chart icon for diagram readability."
+      "alt": "List slide titled 'Why This Actually Works' with three rows, each marked with a green circle-check icon: judge not linter, confidence over answers, and a separate stage not middleware — each with a one-line explanation."
     },
     {
       "type": "cta",
-      "icon": "rocket",
-      "headline": "Claude Code builds. Jev judges.",
-      "sub": "Together they ship things I'd actually trust without re-reading every line myself.",
-      "alt": "Closing slide with a rocket icon badge. Large headline: Claude Code builds. Jev judges. Subheading: Together they ship things I'd actually trust without re-reading every line myself."
+      "icon": "world",
+      "headline": "Where else should an agentic pipeline have a judgment layer like this?",
+      "sub": "Code review? Commit messages? Something else entirely — genuinely curious what you'd wire in next.",
+      "alt": "Closing slide with a globe icon badge. Large headline posed as an open question: Where else should an agentic pipeline have a judgment layer like this? Subheading: Code review? Commit messages? Something else entirely — genuinely curious what you'd wire in next."
     }
   ],
-  "caption": "Claude Code didn't get smarter when I added more prompts. It got smarter when I added a model whose only job is to say no.\n\n💾 Save this if you're building an agentic pipeline and keep wondering how to stop shipping the first draft.\n\n⚡ The problem\nClaude Code is great at producing output fast. It has no built-in opinion on whether that output is actually good — a weak hook, a generic CTA, jargon your audience won't recognize. A schema can catch malformed JSON. It can't catch a boring headline.\n\n🎲 The fix: a judgment layer, kept separate\nI wired Jev (TypeSafe AI) in as its own pre-build stage in my LinkedIn carousel pipeline — never inside the deterministic build/render path, the same way you'd run a linter before a build, not inside one. One systemOne() call scores hook strength, CTA specificity, jargon risk and diagram readability in parallel, and every answer resolves to OK / FLAG / REVIEW off the model's own confidence, never taken as ground truth blindly.\n\n📊 It's not just content\nI used the exact same pattern to pick a package manager. Real cold and warm install benchmarks for npm, pnpm, bun and yarn, measured in my own sandbox, fed to Jev as a structured choice question. Result: bun, 99% confidence — and the reasoning was fully auditable, not a black box.\n\n⚠️ The catch that makes it trustworthy\nConfidence under 0.6 always resolves to REVIEW, even when the answer looks fine either way. A judgment model that's allowed to sound certain about everything is worse than having no judgment model at all.\n\nFollow for more on building agentic pipelines that check their own work before you have to.",
-  "hashtags": ["ClaudeCode", "AgenticAI", "TypeSafeAI", "LLMOps", "BuildInPublic", "GenAI", "SoftwareArchitecture"]
+  "caption": "🤖 Behind the Scenes of My Claude Code Pipeline: One API Call Judges 4 Things About My Content — Using Just 1,503 Tokens\n\nClaude Code can write a full content pipeline in an afternoon. What it can't do on its own is tell you whether the hook is actually good, or whether a diagram will still be legible once it's shrunk to a LinkedIn thumbnail. Jev (TypeSafe AI's System One model) plugs into exactly that gap — not a linter for syntax, a judge for quality, running before anything is allowed to build. Let's break it down.\n\n🔹 How The Judgment Call Actually Works\n\njev-claude-code.json is the manifest for this exact carousel — six slides, written by hand.\n\nscripts/quality-gate.mjs reads it and builds one structured \"state\" object: the audience, the hook slide, the CTA slide, every slide's text, every diagram's source.\n\nThat state goes into Jev's client.systemOne() as a single call, asking four questions in parallel — hook_strength, cta_is_specific, jargon_risk, diagram_readability.\n\nJev answers each one with a score or a probability, plus its own confidence — a Noul reading near 0.5 means \"I'm not sure,\" not \"the answer is 50%.\"\n\nAny answer under 0.6 confidence gets downgraded to REVIEW regardless of what it said — a confident bad grade is more useful than an unsure good one.\n\nOnly rows marked OK pass silently. FLAG and REVIEW rows print straight to the terminal, and --strict turns either one into exit code 1.\n\nOnly after that does scripts/build.mjs even run, turning the same manifest into one self-contained HTML document.\n\nscripts/render.mjs opens that HTML in headless Chromium and exports carousel.pdf plus one PNG per slide — the first time anything actually gets rendered.\n\nAll of that — one network call, four parallel judgments, a hard confidence floor — happens before build.mjs writes a single line of HTML.\n\n💡 Why It Actually Works\n✅ Judge, not linter — a schema catches malformed JSON; Jev catches a boring hook the schema would happily approve.\n✅ Confidence over answers — a low-confidence \"good\" grade still gets flagged for REVIEW, never trusted blindly.\n✅ A separate stage, not middleware — runs before build.mjs, never inside the deterministic render path, so the render pipeline stays fully offline and reproducible whether or not the gate ever runs.\n\n🌍 Where else should an agentic coding pipeline have a judgment layer like this — code review? Commit messages? Something else entirely? Genuinely curious what you'd wire in."
 }
