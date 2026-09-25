@@ -77,6 +77,15 @@ async function main() {
     console.log(`Wrote ${captionPath}`);
   }
 
+  if (manifest.slides.some((s) => s.alt)) {
+    const altPath = resolve(outDir, 'alt-text.md');
+    const altDoc = manifest.slides
+      .map((s, i) => `Slide ${i + 1} (${s.type}):\n${s.alt || '(no alt text written for this slide)'}`)
+      .join('\n\n');
+    await writeFile(altPath, `${altDoc}\n`, 'utf8');
+    console.log(`Wrote ${altPath}`);
+  }
+
   console.log(`Next: node scripts/render.mjs ${outPath.replace(ROOT + '/', '')}`);
 }
 

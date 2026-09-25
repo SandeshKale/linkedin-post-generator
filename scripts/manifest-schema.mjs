@@ -21,7 +21,14 @@ const iconName = z.enum(ICON_NAMES, {
   errorMap: () => ({ message: `must be one of the vendored icons: ${ICON_NAMES.join(', ')}` }),
 });
 
-const baseSlide = z.object({ type: z.string() });
+// Optional on every slide type — LinkedIn's own image alt-text field caps
+// at 1,000 characters, so that's enforced here rather than discovered at
+// upload time. Never auto-derived from other fields (a generated
+// "headline, sub, icon name" string is worse than nothing for a screen
+// reader) — write it by hand describing what's actually on the slide.
+const alt = z.string().min(1).max(1000, 'LinkedIn alt text is capped at 1000 characters').optional();
+
+const baseSlide = z.object({ type: z.string(), alt });
 
 const hookSlide = baseSlide.extend({
   type: z.literal('hook'),

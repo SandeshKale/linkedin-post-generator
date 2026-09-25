@@ -157,7 +157,7 @@ linkedin-post-generator/
 │   ├── logos/, photos/     Brand marks, stock photos — see "Asset library" (licensing caveats)
 │   ├── animations/         From video-generator; NOT directly usable here — see "Asset library"
 │   └── VIDEO_GENERATOR_ATTRIBUTION.md   Per-source license table for the merged-in set
-├── output/                 Generated, gitignored — carousel.html/.pdf, slide-NN.png per slug
+├── output/                 Generated, gitignored — carousel.html/.pdf, slide-NN.png, caption.md, alt-text.md per slug
 ├── package.json            Deps: playwright, mermaid, shiki, zod, @typesafe-ai/sdk
 └── CLAUDE.md               This file
 ```
@@ -199,7 +199,7 @@ lockstep, not just the former.
   "title": "...",                 // <title>, not shown on any slide
   "author": "Sandesh Kale",       // footer name, omit to hide the footer entirely
   "handle": "GenAI Solutions Architect", // footer subtitle, optional
-  "slides": [ { "type": "hook" | "diagram" | "code" | "stat" | "list" | "cta", ... } ],
+  "slides": [ { "type": "hook" | "diagram" | "code" | "stat" | "list" | "cta", "alt": "...", ... } ],
   "caption": "...",               // optional — the post's own text; not rendered on any slide
   "hashtags": ["GenAI", "..."]     // optional — without leading #, added by build.mjs
 }
@@ -210,6 +210,21 @@ so a post's text lives in the same single-source-of-truth JSON file as its
 media. If present, `scripts/build.mjs` writes them out as
 `output/<slug>/caption.md` (caption, blank line, space-joined `#tags`)
 alongside `carousel.html`, ready to paste into LinkedIn's post composer.
+
+`alt` is optional on every slide type (defined once on `baseSlide` in
+`manifest-schema.mjs` rather than repeated per type), capped at 1,000
+characters — LinkedIn's own image alt-text field limit, enforced at
+manifest-validation time rather than discovered at upload. **Never
+auto-derive it** from the slide's other fields (a generated "headline: X,
+sub: Y, icon: bolt" string tells a screen-reader user nothing a sighted
+user gets from actually looking at the slide — the layout, the diagram's
+shape, which bar is longer) — write each one by hand describing what's
+actually on the slide, the same discipline as writing real alt text for
+any image. If any slide in a manifest has `alt`, `build.mjs` writes
+`output/<slug>/alt-text.md`, one block per slide, numbered — a slide
+without `alt` gets an explicit "(no alt text written for this slide)"
+placeholder rather than being silently omitted, so a partially-described
+carousel shows up as a visible gap in the file instead of looking complete.
 
 **Caption structure, calibrated against real high-performing posts, not
 guessed**: a sample of 4 posts (2,830 / 1,279 / 911 / 213 likes) showed the

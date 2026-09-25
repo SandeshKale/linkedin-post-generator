@@ -7,6 +7,7 @@
     {
       "type": "hook",
       "icon": "bolt",
+      "alt": "Dark navy slide with a teal lightning-bolt icon badge. Small teal monospace label reads INFERENCE SYSTEMS. Bold white headline: 'Autoregressive decoding is memory-bound, not compute-bound.' Below it, muted subtext: 'Speculative decoding fixes the math — and provably never changes a single token the model would have said.' Footer shows a circular avatar, 'Sandesh Kale', and 'GenAI Solutions Architect'. Page counter reads 1 / 6.",
       "eyebrow": "Inference Systems",
       "headline": "Autoregressive decoding is memory-bound, not compute-bound.",
       "sub": "Speculative decoding fixes the math — and provably never changes a single token the model would have said."
@@ -14,11 +15,13 @@
     {
       "type": "diagram",
       "icon": "git-branch",
+      "alt": "Dark slide titled 'Draft, Then Verify — In One Pass' next to a small git-branch icon. Below, a vertical flowchart of outlined boxes connected by arrows: 'Current prefix' points down to 'Draft model guesses next D tokens fast', which points to 'Target model scores all D+1 positions in ONE forward pass', which points to a diamond-shaped decision box labeled 'Rejection-sample each draft token'. From the diamond, an 'Accepted' arrow leads to 'Keep token, advance prefix', and a 'Rejected' arrow leads to 'Resample correct token from residual distribution'; both of those loop back up to 'Current prefix', forming a cycle. Page counter reads 2 / 6.",
       "heading": "Draft, Then Verify — In One Pass",
       "mermaid": "graph TD\n  A[Current prefix] --> B[Draft model guesses next D tokens fast]\n  B --> C[Target model scores all D+1 positions in ONE forward pass]\n  C --> D{Rejection-sample each draft token}\n  D -- Accepted --> E[Keep token, advance prefix]\n  D -- Rejected --> F[Resample correct token from residual distribution]\n  E --> A\n  F --> A"
     },
     {
       "type": "code",
+      "alt": "Dark slide titled 'Why Quality Never Drops: Modified Rejection Sampling'. A syntax-highlighted Python code block shows a rejection-sampling loop: for each draft token, compute an acceptance probability as the minimum of 1.0 and the ratio of the target model's probability to the draft model's probability for that token; if a random draw is below that threshold, accept the token and advance; otherwise reject it, build a residual distribution by clipping the target probabilities minus the draft probabilities to zero and normalizing, then sample the corrected token from that residual and stop the round. A trailing comment block notes that if every draft token is accepted, the target model already scored one extra position for free in the same pass, so that bonus token is sampled directly. Page counter reads 3 / 6.",
       "heading": "Why Quality Never Drops: Modified Rejection Sampling",
       "lang": "python",
       "code": "for i, (tok, q_i) in enumerate(zip(draft_toks, draft_probs)):\n    p_i = target_probs[i][tok]\n    if random.random() < min(1.0, p_i / q_i):\n        accept(tok)          # keep it, advance\n        continue\n\n    # Reject: resample from the residual, not the\n    # target's argmax, so the draw stays ~ p_target.\n    residual = clip(target_probs[i] - draft_probs[i], 0)\n    residual /= residual.sum()\n    return sample(residual), \"stop\"\n\n# All accepted: target scored one extra position\n# for free in the same pass — take it as a bonus.\nreturn sample(target_probs[-1]), \"continue\""
@@ -26,6 +29,7 @@
     {
       "type": "stat",
       "icon": "gauge",
+      "alt": "Dark slide with a teal gauge icon and a large gradient teal-to-blue statistic reading '~3x', labeled 'Faster, zero quality loss'. Supporting text explains Google Research's original result: a 60-million-parameter T5-small draft model verified against an 11-billion-parameter T5-XXL target model achieved roughly 3 times faster inference on translation and summarization tasks, with outputs mathematically guaranteed identical to running the 11-billion-parameter model alone. Below that, a two-row comparison bar chart: a short gray bar labeled 'Plain autoregressive decoding — 1x baseline', and a full-length teal-to-blue gradient bar labeled 'Speculative decoding — ~3x throughput'. Page counter reads 4 / 6.",
       "value": "~3x",
       "label": "Faster, zero quality loss",
       "context": "Google Research's original result: a 60M-parameter T5-small draft model verified against an 11B-parameter T5-XXL target hit ~3x faster inference on translation and summarization — with outputs mathematically guaranteed identical to running the 11B model alone.",
@@ -36,6 +40,7 @@
     },
     {
       "type": "list",
+      "alt": "Dark slide titled 'Where This Breaks Without Care', listing three failure modes, each with its own icon instead of a number. A translate/language icon next to: 'Draft and target must share a tokenizer — rejection sampling operates token-by-token with no fallback for mismatched vocabularies.' A downward-trend icon next to: 'A weak draft model tanks the acceptance rate: you pay for two forward passes and gain nothing over plain decoding.' A database icon next to: 'A separate draft model means a second KV cache to manage — EAGLE-style self-drafting avoids this by reusing the target model's own hidden states instead of running an independent model.' Page counter reads 5 / 6.",
       "heading": "Where This Breaks Without Care",
       "items": [
         { "icon": "language", "text": "Draft and target must share a tokenizer — rejection sampling operates token-by-token with no fallback for mismatched vocabularies." },
@@ -46,6 +51,7 @@
     {
       "type": "cta",
       "icon": "rocket",
+      "alt": "Dark navy slide with a teal rocket icon badge. Bold white headline: 'Follow Sandesh Kale.' Muted subtext: 'for more deterministic AI systems breakdowns — the math behind why your inference stack is fast or slow.' Footer repeats the circular avatar, author name, and title. Page counter reads 6 / 6.",
       "headline": "Follow Sandesh Kale",
       "sub": "for more deterministic AI systems breakdowns — the math behind why your inference stack is fast or slow."
     }
