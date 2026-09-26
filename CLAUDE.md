@@ -66,6 +66,16 @@ bun scripts/build-flow-gif.mjs content/<slug>.flow.json   # → output/<slug>/fl
 bun scripts/gif.mjs output/<slug>/flow-scene.html output/<slug>/flow.gif [--duration=4000] [--fps=20]
 ```
 
+**Before publishing a flow-GIF post, read `.claude/skills/cover-art/SKILL.md`
+(invoke it via the `cover-art` skill).** Confirmed by actually publishing
+`jev-claude-code`'s flow GIF to LinkedIn: the platform's post-image upload
+path is a still-image recipe (`STILLIMAGE`/`feedshare-image`) that
+flattens an animated GIF to one static frame the instant it's posted —
+there is no true motion once it's live on the feed. That means the "cover"
+isn't a nice-to-have thumbnail, it may be the *only* frame anyone ever
+sees; don't let whatever frame `scripts/gif.mjs` happens to encode first
+stand in for a deliberately composed poster.
+
 - **`templates/flow-gif.mjs`** (`buildFlowGifHtml()`) builds a standalone
   HTML "scene": real CSS `@keyframes` animations (dashed-line marching
   ants, a `circle` moving via `offset-path`/`offset-distance`, per-node
@@ -390,6 +400,9 @@ the whole manifest into every question's `instructions` — that's the same
 
 ```
 linkedin-post-generator/
+├── .claude/
+│   └── skills/
+│       └── cover-art/      SKILL.md — purpose-built poster frame for a flow-GIF post, ported from video-generator
 ├── scripts/
 │   ├── build.mjs           Manifest → self-contained HTML (the "compiler")
 │   ├── render.mjs          HTML → carousel.pdf + slide-NN.png (the "exporter")
