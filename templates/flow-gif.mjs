@@ -121,6 +121,15 @@ function hexToRgbTriplet(hex) {
 }
 
 const DISPLAY_FONT_WEIGHTS = { 'Space Grotesk': 700, Poppins: 800, 'JetBrains Mono': 600 };
+// A flat title font-size bump wrapped a JetBrains-Mono-display post's
+// title from 2 lines to 3 — a monospace face is proportionally WIDER per
+// declared px than either of the other two display fonts, so the same
+// size increase that was safe for Space Grotesk/Poppins pushed monospace
+// past its wrap point, colliding with the first node's own badge (see
+// CLAUDE.md's zigzag title-collision gotcha — same class of bug,
+// triggered by font choice this time instead of title length). Caught
+// by rendering and looking, not by reading the CSS.
+const DISPLAY_FONT_SIZES = { 'Space Grotesk': 48, Poppins: 48, 'JetBrains Mono': 44 };
 
 function hexPoints(r) {
   const pts = [];
@@ -365,15 +374,35 @@ export function buildFlowGifHtml({
   // card).
   const dotPathD = segments.map((s) => s.d).join(' ');
 
-  // Dot travels the first 80% of the loop, then holds at the last node for
-  // the remaining 20% — a deliberate pause so a viewer scrubbing the GIF
-  // (or just glancing at a stopped frame) reads "arrived," not "mid-motion."
-  const TRAVEL_FRACTION = 0.8;
-  // Each node's arrival instant along the shared timeline — reused by the
-  // dot's own travel keyframes below, the node glow pulse, and the status
-  // panel's row-reveal timing, so all three stay in sync off one source
-  // of truth instead of three separately-tuned numbers.
-  const arrivalPct = (i) => (i / (nodes.length - 1)) * TRAVEL_FRACTION * 100;
+  // Real per-node HOLD (a genuine pause, long enough to read the label
+  // and any note/chips) interleaved with brief MOVE transitions between
+  // nodes — added after feedback that steps advanced too quickly to
+  // read. The earlier version had no real hold at all: the dot moved
+  // continuously across the whole timeline, and a node's "arrival" was
+  // only a brief flash keyframe layered on top of ongoing motion, not an
+  // actual pause. `HOLD_RATIO` fixes each hold to 3x as long as a move;
+  // the real split in ms falls out of `loopMs` ÷ node count rather than
+  // a hardcoded number, so dwell time scales automatically with however
+  // long a given post's own `loopMs` is.
+  const HOLD_RATIO = 3;
+  const numMoves = nodes.length - 1;
+  const moveUnit = 100 / (nodes.length * HOLD_RATIO + numMoves);
+  const holdUnit = moveUnit * HOLD_RATIO;
+  const holdWindows = [];
+  {
+    let cursor = 0;
+    nodes.forEach((n, i) => {
+      holdWindows.push({ start: cursor, end: cursor + holdUnit });
+      cursor += holdUnit;
+      if (i < nodes.length - 1) cursor += moveUnit;
+    });
+  }
+  // Each node's arrival instant — now the START of its own hold window,
+  // not an instantaneous flash — reused by the dot's own travel
+  // keyframes below, the node glow pulse, and the status/annotation
+  // reveal timing, so all three stay in sync off one source of truth.
+  const arrivalPct = (i) => holdWindows[i].start;
+  const holdEndPct = (i) => holdWindows[i].end;
 
   // Two distinct arrival treatments: the default 'glow' pulse (a soft
   // box-shadow bloom, screen/tech register) or 'ink' (a quick scale
@@ -393,24 +422,36 @@ export function buildFlowGifHtml({
   // `transform-box: fill-box` + `transform-origin: center` (see the CSS
   // below) make the scale grow from the card's own center rather than
   // its top-left corner, which `translate(...) scale(...)` alone would do.
+  // The highlight now spans the WHOLE hold window, not a brief flash —
+  // a quick ramp-in/"thwack" right at arrival, holding through most of
+  // the read window, then fading out just before the node's hold ends
+  // (i.e. right as the dot starts moving on) — matching "stay a bit
+  // longer" for real rather than just slowing down an already-brief
+  // flash proportionally.
   const nodePulseKeyframes = nodes
     .map((n, i) => {
-      const centerPct = arrivalPct(i);
-      const before = Math.max(0, centerPct - 4).toFixed(2);
-      const after = Math.min(100, centerPct + 6).toFixed(2);
+      const holdStart = holdWindows[i].start;
+      const holdEnd = holdWindows[i].end;
+      const rampIn = Math.min(holdEnd, holdStart + holdUnit * 0.25).toFixed(2);
+      const fadeStart = Math.max(holdStart, holdEnd - holdUnit * 0.25).toFixed(2);
+      const before = Math.max(0, holdStart - 1).toFixed(2);
+      const startStr = holdStart.toFixed(2);
+      const endStr = holdEnd.toFixed(2);
       if (T.dotStyle === 'ink') {
         return `
         @keyframes pulse-${n.id} {
           0%, ${before}% { transform: translate(${n.x}px, ${n.y}px) scale(1); border-color: var(--border); }
-          ${centerPct.toFixed(2)}% { transform: translate(${n.x}px, ${n.y}px) scale(1.045); border-color: var(--accent); }
-          ${after}%, 100% { transform: translate(${n.x}px, ${n.y}px) scale(1); border-color: var(--border); }
+          ${startStr}% { transform: translate(${n.x}px, ${n.y}px) scale(1.045); border-color: var(--accent); }
+          ${rampIn}%, ${fadeStart}% { transform: translate(${n.x}px, ${n.y}px) scale(1); border-color: var(--accent); }
+          ${endStr}%, 100% { transform: translate(${n.x}px, ${n.y}px) scale(1); border-color: var(--border); }
         }`;
       }
       return `
         @keyframes pulse-${n.id} {
           0%, ${before}% { box-shadow: 0 0 0 rgba(${accentRgb}, 0); border-color: var(--border); }
-          ${centerPct.toFixed(2)}% { box-shadow: 0 0 42px 6px rgba(${accentRgb}, 0.55); border-color: var(--accent); }
-          ${after}%, 100% { box-shadow: 0 0 0 rgba(${accentRgb}, 0); border-color: var(--border); }
+          ${startStr}% { box-shadow: 0 0 42px 6px rgba(${accentRgb}, 0.55); border-color: var(--accent); }
+          ${rampIn}%, ${fadeStart}% { box-shadow: 0 0 22px 4px rgba(${accentRgb}, 0.35); border-color: var(--accent); }
+          ${endStr}%, 100% { box-shadow: 0 0 0 rgba(${accentRgb}, 0); border-color: var(--border); }
         }`;
     })
     .join('\n');
@@ -422,18 +463,38 @@ export function buildFlowGifHtml({
   // own `animation-timing-function`, which sets the easing curve for the
   // interval ENDING at that stop — so each node's arrival keyframe below
   // carries an ease-in-out curve for the hop leading into it.
+  //
+  // TWO stops per node, not one: an "arrival" stop (offset-distance
+  // reaches this node, carrying the eased timing-function for the hop
+  // that just ended) AND a "hold-end" stop at the SAME offset-distance —
+  // an earlier version had only the arrival stop, so the dot immediately
+  // continued interpolating toward the NEXT node's position the instant
+  // it arrived at this one; there was no real pause, just a brief glow
+  // flash layered on top of motion that never actually stopped. Two
+  // stops at an identical value is what makes CSS hold a flat plateau
+  // between them — the actual "stay a bit longer" fix, not merely a
+  // slower version of continuous motion.
   const travelStops = nodes
     .map((n, i) => {
-      const t = arrivalPct(i).toFixed(2);
       const dist = ((i / (nodes.length - 1)) * 100).toFixed(2);
-      return `${t}% { offset-distance: ${dist}%; animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }`;
+      const holdStart = holdWindows[i].start.toFixed(2);
+      const holdEnd = holdWindows[i].end.toFixed(2);
+      return `${holdStart}% { offset-distance: ${dist}%; animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }\n    ${holdEnd}% { offset-distance: ${dist}%; }`;
     })
     .join('\n    ');
 
   const chipCount = chips.length;
   const chipNode = nodes.find((n) => n.id === chipsAt);
-  const chipWindowStart = chipNode
-    ? Math.max(0, arrivalPct(nodes.findIndex((n) => n.id === chipsAt)) - 6)
+  const chipNodeIdx = nodes.findIndex((n) => n.id === chipsAt);
+  // Chips now stagger-reveal across the chip node's own (much longer)
+  // hold window, evenly spaced with margin at both ends, instead of a
+  // fixed "+6 percentage points" offset tuned for the old, much shorter
+  // timeline — that fixed offset would have crammed every chip into the
+  // first sliver of a now much longer hold, then left them all just
+  // sitting there unrevealed for most of the read window.
+  const chipWindowStart = chipNode ? holdWindows[chipNodeIdx].start : 0;
+  const chipWindowSpan = chipNode
+    ? (holdWindows[chipNodeIdx].end - holdWindows[chipNodeIdx].start) * 0.75
     : 0;
 
   // Icon-over-label card, not a horizontal filename pill — a general
@@ -452,7 +513,7 @@ export function buildFlowGifHtml({
   const LOGO_SIZE = 50;
   const ICON_SIZE = 48;
   const ICON_CENTER_Y = 12 + LOGO_BADGE / 2;
-  const STEP_R = 24;
+  const STEP_R = 27;
 
   const nodeEls = nodes
     .map((n, i) => {
@@ -527,8 +588,8 @@ export function buildFlowGifHtml({
     const PANEL_X = 560;
     const PANEL_W = 420;
     const PANEL_Y = nodes[0].y;
-    const ROW_H = 58;
-    const SUB_ROW_H = 42;
+    const ROW_H = 64;
+    const SUB_ROW_H = 46;
     const PANEL_PAD_TOP = 70;
 
     let cursorY = 0;
@@ -538,8 +599,8 @@ export function buildFlowGifHtml({
       cursorY += ROW_H;
       if (n.id === chipsAt) {
         chips.forEach((c, j) => {
-          const stagger = chipCount > 1 ? (6 * j) / chipCount : 0;
-          statusRows.push({ y: cursorY, label: c.label, pct: chipWindowStart + stagger + 5, sub: true });
+          const stagger = chipCount > 1 ? (chipWindowSpan * (j + 1)) / (chipCount + 1) : chipWindowSpan / 2;
+          statusRows.push({ y: cursorY, label: c.label, pct: chipWindowStart + stagger, sub: true });
           cursorY += SUB_ROW_H;
         });
       }
@@ -562,7 +623,7 @@ export function buildFlowGifHtml({
       .map((row, idx) => {
         const indent = row.sub ? 30 : 0;
         const dotR = row.sub ? 5 : 7;
-        const fontSize = row.sub ? 16 : 19;
+        const fontSize = row.sub ? 19 : 22;
         const textFill = row.sub ? 'var(--accent)' : 'var(--text)';
         return `
     <g transform="translate(${indent}, ${row.y})">
@@ -594,9 +655,9 @@ export function buildFlowGifHtml({
     // (still renders, just without the alternating-side effect).
     const laneXs = [...new Set(nodes.map((n) => n.x))];
     const otherLaneX = (x) => (laneXs.length === 2 ? laneXs.find((lx) => lx !== x) : x);
-    const NOTE_FONT = 19;
-    const CHIP_ROW_H = 34;
-    const NOTE_TO_CHIPS_GAP = 34;
+    const NOTE_FONT = 22;
+    const CHIP_ROW_H = 38;
+    const NOTE_TO_CHIPS_GAP = 38;
 
     const rows = [];
     nodes.forEach((n, i) => {
@@ -608,8 +669,8 @@ export function buildFlowGifHtml({
       }
       if (n.id === chipsAt) {
         chips.forEach((c, j) => {
-          const stagger = chipCount > 1 ? (6 * j) / chipCount : 0;
-          rows.push({ x: laneX, y: y + j * CHIP_ROW_H, label: c.label, pct: chipWindowStart + stagger + 5, sub: true });
+          const stagger = chipCount > 1 ? (chipWindowSpan * (j + 1)) / (chipCount + 1) : chipWindowSpan / 2;
+          rows.push({ x: laneX, y: y + j * CHIP_ROW_H, label: c.label, pct: chipWindowStart + stagger, sub: true });
         });
       }
     });
@@ -629,7 +690,7 @@ export function buildFlowGifHtml({
     statusPanelEl = rows
       .map((row, idx) => {
         const dotR = row.sub ? 5 : 7;
-        const fontSize = row.sub ? 16 : NOTE_FONT;
+        const fontSize = row.sub ? 19 : NOTE_FONT;
         const textFill = row.sub ? 'var(--accent)' : 'var(--text)';
         return `
     <g transform="translate(${row.x}, ${row.y})">
@@ -839,7 +900,7 @@ export function buildFlowGifHtml({
   h1 {
     position: relative; z-index: 2;
     font-family: '${T.displayFont}', sans-serif;
-    font-size: 44px; font-weight: ${DISPLAY_FONT_WEIGHTS[T.displayFont] || 700}; line-height: 1.15;
+    font-size: ${DISPLAY_FONT_SIZES[T.displayFont] || 48}px; font-weight: ${DISPLAY_FONT_WEIGHTS[T.displayFont] || 700}; line-height: 1.15;
     margin: 20px 72px 0 72px;
   }
   /* In normal flow, above the title, not absolutely positioned beside
@@ -856,7 +917,7 @@ export function buildFlowGifHtml({
     border: 1px solid var(--border);
     border-radius: 999px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 17px; font-weight: 600;
+    font-size: 19px; font-weight: 600;
     color: var(--muted);
   }
   .brand-badge-icon { width: 26px; height: 26px; display: block; color: var(--text); }
@@ -911,7 +972,7 @@ export function buildFlowGifHtml({
   .node text {
     fill: var(--text);
     font-family: 'Inter', sans-serif;
-    font-size: 26px;
+    font-size: 31px;
     font-weight: 600;
   }
   /* Real, full-color product logos (Bun, Playwright) are the node's
@@ -925,7 +986,7 @@ export function buildFlowGifHtml({
   .step-badge text {
     fill: ${T.stepBadgeTextColor || '#04231f'};
     font-family: 'JetBrains Mono', monospace;
-    font-size: 20px;
+    font-size: 23px;
     font-weight: 700;
   }
   ${nodePulseKeyframes}
@@ -933,7 +994,7 @@ export function buildFlowGifHtml({
   .status-panel { fill: var(--card); stroke: var(--border); stroke-width: 2; }
   .status-panel-title {
     fill: var(--text); font-family: 'Space Grotesk', sans-serif;
-    font-size: 20px; font-weight: 700;
+    font-size: 23px; font-weight: 700;
   }
   .status-panel-rule { stroke: var(--border); stroke-width: 1; }
   .status-row text { font-family: 'Inter', sans-serif; font-weight: 600; }
@@ -948,7 +1009,7 @@ export function buildFlowGifHtml({
   @keyframes march-branch { to { stroke-dashoffset: -320; } }
   .branch-arrow { fill: var(--warn); opacity: 0.7; }
   .branch-node rect, .branch-node > path { fill: rgba(255, 180, 84, 0.08); stroke: var(--warn); stroke-width: 2; stroke-dasharray: 5 5; }
-  .branch-node text { fill: var(--warn); font-family: 'Inter', sans-serif; font-size: 19px; font-weight: 600; }
+  .branch-node text { fill: var(--warn); font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 600; }
 </style>
 </head>
 <body>

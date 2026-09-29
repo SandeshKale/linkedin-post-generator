@@ -340,6 +340,82 @@ took `output/jev-claude-code/flow.gif` from ~4.4MB (76 frames) to
 a free dial — check the resulting file size after raising it, the same
 way you'd check a carousel PNG's dimensions after changing `--scale`.
 
+**Real dwell time at each node, not just a slower version of continuous
+motion — direct feedback: "make each step progression stay a bit longer
+for the user to read."** The original travel timeline had no real pause
+at intermediate nodes at all: `travelStops` placed one keyframe per node
+at its exact arrival instant, and CSS immediately continued interpolating
+`offset-distance` toward the NEXT node's keyframe from that same instant
+— the dot never stopped, "arrival" was only a glow flash layered on top
+of motion that kept going the whole time. Increasing `loopMs` alone would
+have just slowed that same continuous motion down uniformly, not created
+an actual pause. Fixed with a real hold/move timeline: `HOLD_RATIO = 3`
+(each hold is 3x a move's own duration) partitions `nodes.length` holds
+and `nodes.length - 1` moves across the full 0–100% loop
+(`holdUnit`/`moveUnit`, derived from node count rather than hardcoded);
+`travelStops` now emits TWO stops per node — arrival (carrying the eased
+`animation-timing-function` for the hop that just ended) and hold-end, at
+the SAME `offset-distance` — and CSS holds a genuine flat plateau between
+two identical-value stops. `arrivalPct(i)` is now a hold window's
+*start*; `holdEndPct(i)` is new. The node glow/ink pulse was rewritten to
+match: it now ramps in at hold start, stays lit through most of the hold
+(a real "this is the active step" indicator while you're meant to be
+reading it, not a one-frame flash), and fades out only right before the
+hold ends. Chip stagger (the four Jev-style facts under a `chipsAt` node)
+now spreads across ~75% of that node's own hold window
+(`chipWindowSpan`) instead of a fixed `+6` percentage-point offset tuned
+for the old, much shorter timeline — that fixed offset would have
+crammed every chip into the first sliver of a now much longer hold, then
+left them sitting there unrevealed for most of the read window.
+`content/agent-governance.flow.json`'s `loopMs` went from 4600 to 7800 to
+give the new hold windows (now ~13% of the loop each, versus an
+effectively-zero real hold before) a comfortable absolute duration — a
+post with a shorter `loopMs` still gets a real, proportionally shorter
+hold rather than none at all, so this is safe to leave untouched on a
+post that doesn't need it lengthened.
+
+**Text across the whole scene is meaningfully bigger** — another direct
+"make the text bigger and readable" — node labels 26→31px, the title
+48px (44px for a JetBrains-Mono-display theme specifically, see the
+gotcha below), notes/status rows 19→22px (main) and 16→19px (chip
+sub-rows), the step badge itself enlarged to match (`STEP_R` 24→27,
+digit 20→23px), branch-node text 19→22px, the brand badge 17→19px. `ROW_H`/
+`SUB_ROW_H` (column layout) and `CHIP_ROW_H`/`NOTE_TO_CHIPS_GAP` (zigzag)
+all grew proportionally alongside the fonts they space — bumping a font
+size without also widening its row spacing just re-crowds the text that
+got easier to read.
+
+**Gotcha: a flat title-font-size bump wrapped a 2-line title to 3 lines
+for the JetBrains-Mono-display theme specifically, colliding with the
+first node's own badge.** A monospace face is proportionally WIDER per
+declared pixel size than either of this repo's other two display fonts
+(Space Grotesk, Poppins) — the same +4px bump that was safe for those two
+pushed "dossier" (JetBrains Mono) past its wrap point. Same class of bug
+as the earlier zigzag title-collision gotcha (see "Layout" below), just
+triggered by font choice instead of title length this time, and caught
+the same way — by rendering and looking, not by reading the CSS. Fixed
+with a per-font-family size table (`DISPLAY_FONT_SIZES`, the same pattern
+`DISPLAY_FONT_WEIGHTS` already uses) rather than one flat `h1` size for
+every theme.
+
+**Gotcha: the same bigger font that fixed readability also overflowed a
+note clean past its own lane, into the neighboring node's step badge.**
+`content/agent-governance.flow.json`'s `checks` node had a 44-character
+note (`"Schema, structure — what a linter can catch"`) that fit, barely,
+at the old 19px — at the new 22px it ran past the ~460px lane width by
+enough to visually collide with the next row's diamond badge, which
+itself overhangs its node's own left edge by `STEP_R * 1.4` (~38px),
+leaving only a few real px of margin even for correctly-sized text. Not
+a layout bug — the lane math itself is still exactly right; the note text
+was simply too long for it at the new size. Fixed by shortening every
+`note` string in that manifest, not by shrinking the font back down
+(shrinking it back would have undone the actual readability fix). **A
+`note` string's real length budget is roughly 30–36 characters at this
+theme's font/lane width** — check any new note against an actual render,
+the same "verify visually" discipline this file already asks for
+everywhere else, rather than assuming a short-looking string is short
+enough.
+
 ## Content quality gate (Jev)
 
 `scripts/quality-gate.mjs` runs a manifest's content past [Jev](https://typesafe.ai)
