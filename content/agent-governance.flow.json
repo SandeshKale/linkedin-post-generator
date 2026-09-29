@@ -1,19 +1,21 @@
 {
   "title": "Agents Don't Fail From Bad Models. They Fail From Missing Governance.",
-  "theme": "audit",
-  "loopMs": 4200,
+  "theme": "dossier",
+  "layout": "zigzag",
+  "loopMs": 4600,
   "brandBadge": "anthropic",
   "brandBadgeLabel": "Claude Code",
+  "_layoutNotes": "Zigzag lane math (see flow-gif.mjs's 'zigzag' JSDoc): two lanes, LEFT x=60 and RIGHT x=560, both w=460. Nodes alternate lane every row; each node's note/chips render in whichever lane it is NOT occupying that row. Row step is 155px, except judge->build (590->845, a 255px step) to leave room in judge's own left lane for the branch box directly below it (judge's right lane is already spoken for by its 4 chips). y=230 (an earlier draft) put node 1 directly under this title's own second line once it wrapped to two lines — caught only by rendering and looking, not by reading the coordinates (see CLAUDE.md's 'Verify visually' rule) — fixed by starting at y=280 instead. Every gap below was hand-checked for zero overlap, then re-confirmed by rendering.",
   "nodes": [
-    { "id": "draft", "x": 80, "y": 245, "w": 400, "h": 130, "label": "Agent Proposes Action", "icon": "file-text" },
-    { "id": "checks", "x": 80, "y": 422, "w": 400, "h": 130, "label": "Automated Checks", "logo": "bun" },
-    { "id": "judge", "x": 80, "y": 599, "w": 400, "h": 130, "label": "AI Judge", "icon": "brain" },
-    { "id": "build", "x": 80, "y": 776, "w": 400, "h": 130, "label": "Build", "logo": "bun" },
-    { "id": "execute", "x": 80, "y": 953, "w": 400, "h": 130, "label": "Execute & Ship", "logo": "playwright" },
-    { "id": "live", "x": 80, "y": 1130, "w": 400, "h": 130, "label": "Live in Production", "icon": "rocket" }
+    { "id": "draft", "x": 60, "y": 280, "w": 460, "h": 130, "label": "Agent Proposes Action", "icon": "file-text", "note": "No output ships without a check first" },
+    { "id": "checks", "x": 560, "y": 435, "w": 460, "h": 130, "label": "Automated Checks", "logo": "bun", "note": "Schema, structure — what a linter can catch" },
+    { "id": "judge", "x": 60, "y": 590, "w": 460, "h": 130, "label": "AI Judge", "icon": "brain", "note": "Confidence-scored, not pass/fail" },
+    { "id": "build", "x": 560, "y": 845, "w": 460, "h": 130, "label": "Build", "logo": "bun", "note": "Only what actually passed the gate gets this far" },
+    { "id": "execute", "x": 60, "y": 1000, "w": 460, "h": 130, "label": "Execute & Ship", "logo": "playwright", "note": "Runs the real action — for real" },
+    { "id": "live", "x": 560, "y": 1155, "w": 460, "h": 130, "label": "Live in Production", "icon": "rocket", "note": "Auditable — every step still logged" }
   ],
   "branchFrom": "judge",
-  "branch": { "x": 560, "y": 1130, "w": 340, "h": 100, "label": "Escalate to Human", "icon": "users" },
+  "branch": { "x": 60, "y": 742, "w": 460, "h": 85, "label": "Escalate to Human", "icon": "users" },
   "chipsAt": "judge",
   "chips": [
     { "label": "Confidence ≥ 60%?", "icon": "gauge" },

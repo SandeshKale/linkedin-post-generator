@@ -9,6 +9,32 @@ document-pipeline sibling of `SandeshKale/video-generator`: same
 from *time* (`window.__seek(t)`) to *pagination* (`page.pdf()` + CSS
 `@page`). Read this before creating or editing a carousel.
 
+## Every post's media needs its own identity — hard rule, both pipelines
+
+Direct instruction, after two flow-GIF posts in a row reused the same
+column-plus-side-panel layout under different palettes: **"go completely
+wild and creative. every post's media asset that you create should be
+unique."** This generalizes `video-generator`'s own "every reel needs its
+own visual identity" rule (see "Visual identity" below) past *theme*
+(color/shape/texture/font) to *layout* itself — a new palette on the same
+skeleton is not enough. Concretely:
+
+- A named theme/layout preset (`THEMES`, `layout: 'zigzag'`, etc.) is a
+  **documented reference point to remix**, not a closed set to keep
+  reusing verbatim on an unrelated post's topic. The normal path for an
+  actual new post is inline custom values in that post's own manifest,
+  not picking one of the existing names again.
+- Before building a new flow-GIF or carousel post, research real
+  layout/infographic conventions beyond whatever this repo has already
+  tried (zigzag/S-curve, radial, circular, horizontal — see "Layout"
+  below for what came out of exactly this search) rather than defaulting
+  to the last post's structure with new colors.
+- This costs real iteration — the "dossier" theme alone needed a
+  title/annotation collision fixed, a branch-connector repositioning, a
+  connector-contrast fix, and a background-texture rewrite for GIF file
+  size, all only found by rendering and looking. Budget for that; a wild
+  new layout is not free the way a palette swap is.
+
 ## Core render contract (read this first)
 
 `video-generator`'s invariant is "`__seek(t)` must be a pure function of
@@ -422,7 +448,7 @@ linkedin-post-generator/
 │   ├── example-rag-guardrails.json   Sample manifest (all 6 slide types, no icons — tests the no-icon path)
 │   ├── speculative-decoding.json     Sample manifest using icons + a stat "compare" bar chart
 │   ├── jev-claude-code.flow.json     Sample animated-GIF flow manifest, "blueprint" theme — see "Animated GIF posts"
-│   └── agent-governance.flow.json    Flow manifest using the "audit" theme — see "Visual identity"
+│   └── agent-governance.flow.json    Flow manifest, "dossier" theme + "zigzag" layout — see "Visual identity"/"Layout"
 ├── assets/
 │   ├── fonts/              Vendored webfonts (.woff2, OFL) — see "Typography"
 │   ├── icons/              Vendored icon sets incl. tabler/ (.svg) — see "Slide manifest schema"
@@ -737,39 +763,148 @@ field on the manifest selecting a second `themeVariables` object + a
 second CSS custom-property set) over mutating the existing one — don't
 silently reskin "Blueprint" out from under posts that already reference it.
 
-**`templates/flow-gif.mjs` already has a second theme, "Audit," added for
-`content/agent-governance.flow.json`** — prompted by direct feedback that
-reusing the exact same teal/rounded-card look for every flow-GIF post
-("why following the same template... be creative") was the same mistake
-`video-generator`'s CLAUDE.md warns against under "every reel needs its
-own visual identity": a post-specific *palette* isn't enough on its own if
-the *component language* (card shape, texture metaphor, display font)
-stays identical. A manifest opts in with a top-level `"theme": "audit"`
-field (omit it, or set `"blueprint"`, for the original look — the default,
-so every existing flow-GIF manifest is unaffected). The `THEMES` map in
-`flow-gif.mjs` is the single source of truth for what a theme actually
-varies:
+**`templates/flow-gif.mjs`'s `theme` field takes either a preset name or a
+full inline theme object** — prompted by two rounds of direct feedback,
+not one: first that reusing the exact same teal/rounded-card look for
+every flow-GIF post ("why following the same template... be creative")
+was the mistake `video-generator`'s CLAUDE.md warns against under "every
+reel needs its own visual identity" (a post-specific *palette* isn't
+enough if the *component language* — card shape, texture metaphor,
+display font — stays identical); then, after a second "Audit" preset
+theme, that the underlying *layout* (a straight node column plus one
+fixed side panel) was **also** identical across every post regardless of
+theme, which a palette/shape system can't fix on its own — see "Layout"
+below for that half of the fix. `THEMES` (three named presets:
+`blueprint`, `audit`, `dossier`) are reference points to remix, not a
+closed set to keep reusing verbatim on an unrelated post's topic — the
+normal path for an actual new post is a full theme object inline in that
+post's own manifest, merged over `blueprint`'s defaults, so it only has to
+specify what it changes:
 
-| | Blueprint (default) | Audit |
-| --- | --- | --- |
-| Palette | Teal/blue accent on navy-slate | Amber/violet accent on near-black |
-| Node shape | Rounded-rect cards (`<rect rx>`) | Clip-corner angular panels (`clipCornerPath()`, an SVG-path version of the same shape `video-generator`'s loop-method reel gets via a CSS `clip-path` polygon) |
-| Step badge | Filled circle | Regular hexagon (`hexPoints()`) — a "seal/stamp" read, fitting an audit/governance topic |
-| Background texture | Static dot-grid | A fine amber grid + a slowly rotating radar-sweep wedge (`@keyframes sweep`) — genuine motion, not just a recolor, and still fully compatible with `scripts/gif.mjs`'s deterministic Web-Animations scrub since it's just another CSS animation like the dot/pulse/status-row ones already in this file |
-| Display font | Space Grotesk 700 | Poppins 800 (the only two Poppins weights this repo vendors, see "Typography" — using 800 for real rather than requesting a synthetic 700 out of a Space-Grotesk-only weight file) |
+| | Blueprint (default) | Audit | Dossier |
+| --- | --- | --- | --- |
+| Palette | Teal/blue on navy-slate | Amber/violet on near-black | Ink-red on cream paper |
+| Node shape | Rounded-rect (`<rect rx>`) | Clip-corner (`clipCornerPath()`, an SVG-path version of the CSS `clip-path` polygon `video-generator`'s loop-method reel uses) | Rounded, dashed border (`nodeBorderStyle: 'dashed'`) — a "redacted folder" look |
+| Step badge | Filled circle | Regular hexagon (`hexPoints()`) | Filled circle |
+| Background | Static dot-grid | Fine grid + rotating radar-sweep (`@keyframes sweep`) | A vignette (`bgTexture: 'paper'`) — see the GIF-size gotcha below for why it's *just* a vignette |
+| Connector | Straight, `--border` color | Straight, `--border` color | Hand-wobbled (`connectorStyle: 'wobble'`, an SVG `feTurbulence`/`feDisplacementMap` filter) in a dedicated `connectorColor`, not `--border` (see the contrast gotcha below) |
+| Dot arrival | Soft glow pulse (`dotStyle: 'glow'`) | Same | A scale "thwack" + border darken (`dotStyle: 'ink'`), no glow — a stamp doesn't emit light |
+| Display font | Space Grotesk 700 | Poppins 800 | JetBrains Mono 600 — a typewriter read |
+| Extras | — | — | A rotated `stamp: {text, rotate}` watermark across the scene |
 
-Every node/branch glow color that used to be a hardcoded Blueprint-teal
-`rgba(63, 208, 201, …)` literal (the pulse box-shadow, the traveling dot's
-drop-shadow) is now derived from the active theme's own accent via
-`hexToRgbTriplet()` — a straight hex hardcode wouldn't have recolored with
-the rest of the theme.
+`DISPLAY_FONT_WEIGHTS` maps each `displayFont` to the one weight this repo
+actually vendors for it (see "Typography") — `h1`'s `font-weight` reads
+from that map rather than a hardcoded ternary, so a new display font
+doesn't silently request a synthetic weight out of a single-weight
+`@font-face`. Every node/branch glow color that used to be a hardcoded
+Blueprint-teal `rgba(63, 208, 201, …)` literal is derived from the active
+theme's own accent via `hexToRgbTriplet()`.
 
-**Adding a third theme**: add an entry to the `THEMES` object (colors +
-`sceneBg` + `displayFont` + `nodeShape` + `stepBadgeShape` + `bgTexture`),
-vendor any new font weight it needs (see "Typography"), and reference it
-from a manifest's `theme` field — no other code changes required, the
-node/branch/background rendering already branches on these theme fields
-rather than hardcoding Blueprint's shapes.
+**Gotcha: a color with enough contrast against a node's own `--card` fill
+can still be nearly invisible directly on the scene background.** Dossier's
+connector line uses `--border` by default (same as every node/panel
+border) and was originally left that way — on a node card's brighter,
+more opaque `--card` fill it read fine, but the connector itself sits
+directly on the raw, already-textured scene background, where the exact
+same color at the exact same opacity was nearly imperceptible. Confirmed
+by sampling actual pixel values at the connector's own coordinates (a
+faint but real ~40-unit brightness dip, invisible to the eye at normal
+zoom against the paper hatch, not a rendering bug), not by eyeballing a
+screenshot once. Fixed with a theme-overridable `connectorColor` separate
+from `--border`, so a fix here doesn't change every other border in the
+theme. **General lesson: check a shared color against every surface it
+actually touches, not just the first one it was designed against.**
+
+**Gotcha: a fine repeating-gradient "paper grain" texture produced a
+genuinely enormous GIF — 63MB at 30fps, still 38MB at 18fps** — a
+near-continuous few-pixels-apart pattern across the whole 1080×1350 canvas
+defeats a palette-based GIF encoder's per-frame compression so badly that
+dropping the frame rate barely moved the file size at all, which is
+itself the tell that frame count isn't the size driver in a case like
+this. The same "flat, low-contrast regions compress better" lesson this
+file already documents for GIF's frame-delay/fps tradeoff applies far
+more severely to background *texture* — isolated by re-rendering the same
+scene with the hatch layer stripped out (12.8MB) versus left in at even a
+widened 40px repeat (23MB): the hatch alone cost ~10MB. Dossier's paper
+texture is now a plain radial-gradient vignette, no repeating hatch at
+all — still reads as "aged paper" at this resolution, and the realism
+wasn't worth 10MB on a file that has to actually upload somewhere.
+**Check a themed background's real GIF file size before calling a texture
+done, the same way `--fps` already gets checked — a texture that looks
+fine as a single PNG can still be a compression disaster as a GIF.**
+
+**Adding a fourth theme**: add an entry to the `THEMES` object (`colors` +
+`sceneBg` + `displayFont` + `nodeShape` + `nodeBorderStyle` +
+`stepBadgeShape` + `stepBadgeTextColor?` + `bgTexture` + `connectorStyle`
++ `connectorColor?` + `dotStyle` + `stamp?`) — or skip `THEMES` entirely
+and hand a full custom object straight to a manifest's `theme` field,
+which is the expected path for a one-off post rather than a new named
+preset. Vendor any new font weight it needs (see "Typography"), and
+**render the real GIF and check its file size** before considering a new
+background texture finished.
+
+## Layout ("column", and flow-gif's "zigzag" layout)
+
+A flow-GIF manifest's `layout` field (default `'column'`) controls the
+node *arrangement*, independently of `theme` (which controls color/shape/
+texture) — the two are orthogonal, checked by construction: `isZigzag`
+only ever branches connector geometry and the side-content renderer,
+never anything theme-related.
+
+- **`'column'`** (default, unchanged) — every node at the same `x`,
+  connected by straight vertical edges, with a single "Live Status" panel
+  in the fixed dead space beside the column (one row per node, ticking on
+  as the dot arrives, plus any `chips` nested under the node at
+  `chipsAt`).
+- **`'zigzag'`** — added alongside the "dossier" theme after feedback that
+  every flow-GIF post used the same column-plus-side-panel *shape*
+  regardless of theme, and real research into flowchart/infographic
+  layout conventions (S-curve/zigzag connectors between alternating-side
+  nodes are a standard technique for using a portrait canvas's full width
+  instead of cramping a linear sequence into one column). Nodes alternate
+  between two hand-placed lanes (this file still never computes a layout
+  for you — see `content/agent-governance.flow.json`'s own lane-math
+  comment for the worked coordinates); connectors are smooth S-curve cubic
+  beziers (`bezierPath()`) instead of straight lines; each node's optional
+  `note` (a short annotation string) plus any `chips` at that node render
+  inline in the lane it ISN'T occupying that row — the same lane its
+  neighbor two rows down will later reuse — instead of one centralized
+  panel, since a fixed side column has nothing to be "beside" once nodes
+  stop sharing one `x`.
+
+**`bezierPath(x1,y1,x2,y2)`'s control-point choice is load-bearing, not
+arbitrary**: both control points sit at the shared vertical midpoint but
+at each endpoint's own `x`, which makes the curve leave the source and
+arrive at the target moving perfectly *vertically* — that's what lets the
+existing fixed-downward arrowhead polygon keep working completely
+unmodified even though the curve bends sideways in the middle. When
+`x1 === x2` (every `'column'`-layout connector), the two control points
+collapse onto the same vertical line as the endpoints, degenerating to a
+visually identical straight line — confirmed by re-rendering
+`jev-claude-code.flow.json` (still `layout: 'column'`, unaffected by any
+of this) and diffing a paused-at-`t=0` screenshot against its pre-zigzag
+version pixel-for-pixel identical, not just assumed from the geometry.
+
+**Gotcha: a 2-line title collided with the first zigzag node's own
+annotation.** An earlier draft started the first node at `y=230`,
+matching the old column layout's own first-row `y` — but that number was
+tuned for a title that happened to wrap to exactly two lines at a length
+that cleared it narrowly; a slightly different (still two-line) title in
+the zigzag post pushed its own second line down into where that row's
+annotation text renders. Caught only by rendering and looking, not by
+reading the coordinates (see "Verify visually" below) — the same class of
+bug as this file's earlier node-height/spacing gotcha, just triggered by
+title length instead of card height. Fixed by starting the first row 50px
+lower (`y=280`) for real clearance rather than the minimum that happened
+to just barely work.
+
+**The branch box's connector reuses the same fixed-downward-arrow trick**
+as the main path in `'zigzag'` layout specifically by leaving from the
+source node's *bottom* edge (matching every other connector in a zigzag
+scene) rather than its *right* edge (the `'column'`-layout default, which
+made sense when the branch always sat off to the column's side) — a small
+`isZigzag` branch inside the existing branch-arrow trig code, which
+already handled arbitrary angles and needed no other changes.
 
 ## Diagram engines
 
