@@ -607,6 +607,7 @@ linkedin-post-generator/
 ├── content/
 │   ├── example-rag-guardrails.json   Sample manifest (all 6 slide types, no icons — tests the no-icon path)
 │   ├── speculative-decoding.json     Sample manifest using icons + a stat "compare" bar chart
+│   ├── rag-retrieval-quality.json    First real content manifest using engine: "d2" — see "Diagram engines" gotchas
 │   ├── jev-claude-code.flow.json     Sample animated-GIF flow manifest, "blueprint" theme — see "Animated GIF posts"
 │   └── agent-governance.flow.json    Flow manifest, "dossier" theme + "zigzag" layout — see "Visual identity"/"Layout"
 ├── assets/
@@ -1125,6 +1126,62 @@ render-verified:
 needed to add D2; it drops into the same `.diagram-wrap.card` Mermaid
 already used, the same way the code slide's `pre.shiki` sits at its own
 tone inside the outer card.
+
+**Gotcha: a D2 diagram taller than its card silently overflowed straight
+off the bottom of the slide — and the real cause was a flexbox bug in
+`templates/carousel.mjs`, not anything about D2 or `.diagram-wrap svg`'s
+CSS.** First real content manifest to push a D2 diagram through the full
+`build.mjs`/`render.mjs` pipeline (`content/rag-retrieval-quality.json`'s
+5-node vertical retrieval pipeline) — every previous D2 verification in
+this file was Mermaid-diagram-shaped in spirit (wide, short aspect ratio)
+and never actually exercised a diagram taller than its card. Three
+distinct things had to be fixed, found in this order, each only by
+rendering and looking (a Playwright `getBoundingClientRect()` measurement
+pass on `.diagram-wrap`/the `svg`, the same debugging technique this file
+already used for the flow-GIF's own dot-position gotchas):
+
+1. **The real bug: `.diagram-wrap`'s `flex: 1` never actually shrank it.**
+   A flex item's default `min-height` is `auto`, which lets it grow to its
+   content's own intrinsic min-content size *regardless* of `flex: 1` —
+   confirmed by measuring `.diagram-wrap`'s computed height at **2256px**
+   inside a 1350px-tall slide, with `max-height` computing to `none`
+   because it had no bounded ancestor height to resolve a percentage
+   against in the first place. This is why `max-height: 100%` on the
+   child `svg` (already present) did nothing: the box it was supposed to
+   be constrained by was itself unconstrained. Mermaid diagrams never hit
+   this only because they're all wide/short enough that their intrinsic
+   content height already happens to fit — the bug was latent, not
+   engine-specific. **Fix**: `min-height: 0; overflow: hidden;` added to
+   `.diagram-wrap` — the standard, well-known fix for this exact flexbox
+   trap, letting `flex: 1` actually win.
+2. Patching only the SVG's own `width`/`height` attributes (mirroring
+   Mermaid's own `width="100%"` on its root `<svg>`, since D2's root
+   `<svg>` ships with neither) turned out to be unnecessary for the
+   actual fix and briefly counterproductive: setting `height="100%"` on
+   an SVG inside a container whose height depends circularly on that same
+   SVG's intrinsic size (bug 1, above, uncorrected) simply grows both in
+   lockstep. Once bug 1 was fixed, D2's `<svg>` still had no `width`
+   attribute like Mermaid's does, so `width="100%"` is kept — parity
+   with Mermaid, not the overflow fix itself.
+3. **A second, purely cosmetic bug, only visible after fixing #1**: D2
+   hardcodes `preserveAspectRatio="xMinYMin meet"` on its root `<svg>`.
+   Once the diagram actually scaled down to fit the card, a diagram
+   narrower than the card (a short vertical chain, once it no longer
+   overflowed) sat flush against the top-left corner with a large empty
+   gap on the right, instead of centered — "meet" scales-to-fit correctly
+   but "xMin YMin" anchors the result to the box's minimum corner, not
+   its center. Patched to `xMidYMid meet` in the same regex pass.
+
+`scripts/d2.mjs`'s `renderD2()` now does both SVG-tag patches (`width`
+attr + `preserveAspectRatio`) via two chained `.replace()` calls, same
+"patch only the specific attribute in place, never discard the rest of
+the tag" pattern `templates/flow-gif.mjs`'s `sizedIcon()` already uses —
+watch for the D2 output's leading `<?xml version="1.0" ...?>` declaration
+if editing that regex: an anchored `/^<svg /` silently matches nothing
+and looks like it worked (no error) while doing nothing, since D2's
+`render()` return value starts with the XML declaration, not `<svg`
+itself; drop the `^` anchor and let `.replace()`'s own single-match
+default behavior find the first real `<svg` tag.
 
 **D2-specific operational gotcha — this one matters, don't skip it if
 touching `scripts/d2.mjs`**: the `D2` class has **no exposed

@@ -168,7 +168,20 @@ function baseStyles() {
     .slide-hook .safe { justify-content: center; }
     .slide-cta .safe { justify-content: center; align-items: flex-start; }
 
-    .diagram-wrap { flex: 1; display: flex; align-items: center; justify-content: center; }
+    /* min-height: 0 is load-bearing, not defensive: a flex item's default
+       min-height is 'auto', which lets it grow to its content's intrinsic
+       size regardless of flex: 1 — so a diagram whose own SVG is
+       intrinsically taller than the card (a tall vertical D2 flowchart,
+       unlike this repo's existing wide/short Mermaid diagrams, which
+       never happened to trigger this) silently overflowed straight past
+       the card and off the bottom of the slide, with max-height: 100%
+       below never even getting a bounded ancestor height to resolve
+       against. Caught by measuring the actual rendered getBoundingClientRect
+       of .diagram-wrap (2256px tall inside a 1350px slide) in a real
+       Playwright page, not by reading this CSS — the generated SVG
+       markup and even its width/height attributes looked completely
+       correct in isolation. */
+    .diagram-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
     .diagram-wrap svg { max-width: 100%; max-height: 100%; }
 
     .code-card { flex: 1; overflow: hidden; }

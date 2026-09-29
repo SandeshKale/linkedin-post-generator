@@ -32,5 +32,30 @@ const DEFAULT_THEME_ID = 200;
 export async function renderD2(source, opts = {}) {
   const engine = getD2();
   const result = await engine.compile(source, { sketch: true, themeID: opts.themeID ?? DEFAULT_THEME_ID });
-  return engine.render(result.diagram, result.renderOptions);
+  const svg = await engine.render(result.diagram, result.renderOptions);
+  // D2's own root <svg> carries a viewBox but no width/height at all —
+  // unlike Mermaid's output, which sets width="100%" on its root (see
+  // scripts/mermaid.mjs). Patch the same attribute onto D2's root <svg>
+  // tag in place (regex, same "patch only the size attrs, never discard
+  // the rest of the tag" pattern templates/flow-gif.mjs's sizedIcon()
+  // already uses for vendored icons) so both engines' output behaves
+  // identically here. This alone does NOT fix a tall diagram overflowing
+  // its card, though — that turned out to be a flexbox bug in
+  // .diagram-wrap itself (see templates/carousel.mjs), not a missing
+  // attribute on the SVG; this width="100%" is just parity with Mermaid,
+  // not the actual overflow fix.
+  //
+  // D2 also hardcodes preserveAspectRatio="xMinYMin meet" on its root
+  // <svg> — once the overflow bug above is fixed and the diagram
+  // actually scales down to fit the card, "xMin YMin" anchors the
+  // scaled content to the box's top-left corner instead of centering
+  // it, so a diagram whose own aspect ratio is narrower than the card
+  // (a short, few-node vertical chain) sits flush left with a large
+  // empty gap on the right rather than centered — still visibly wrong
+  // even after the real overflow fix, caught the same way, by rendering
+  // and looking. Force "xMidYMid meet" (center, not corner-anchor) to
+  // match how a centered `.diagram-wrap` is expected to look.
+  return svg
+    .replace(/<svg /, '<svg width="100%" ')
+    .replace('preserveAspectRatio="xMinYMin meet"', 'preserveAspectRatio="xMidYMid meet"');
 }
