@@ -1,9 +1,14 @@
 // Builds a standalone, self-contained HTML "scene" for an animated flow
 // diagram — the GIF-post sibling of templates/carousel.mjs's static
-// <section class="slide"> pages. Reuses the same Blueprint theme tokens and
-// vendored fonts so a GIF post and a carousel post from this repo read as
-// the same brand, but this file's whole reason to exist is the opposite of
-// carousel.mjs's contract: everything in here is a real, running CSS
+// <section class="slide"> pages. Supports two visual systems (see the
+// THEMES map below — 'blueprint', the original, teal/navy/rounded-cards
+// system carousel.mjs also uses, and 'audit', a genuinely distinct
+// amber/violet/clip-corner system for a different post's topic, not just
+// a recolor — video-generator's CLAUDE.md is explicit that "every reel
+// needs its own visual identity," component language included, not just
+// its palette). All vendored fonts either theme might reach for. This
+// file's whole reason to exist is the opposite of carousel.mjs's contract:
+// everything in here is a real, running CSS
 // Animation (marching-ants dashes, a traveling "request" dot, per-node glow
 // pulses), driven purely by CSS so scripts/gif.mjs can scrub it
 // deterministically via the Web Animations API (`animation.currentTime`) —
@@ -62,6 +67,77 @@ function iconAt(svg, x, y, size, colorVar) {
   return `<g transform="translate(${x}, ${y})" style="color: ${colorVar};">${sizedIcon(svg, size)}</g>`;
 }
 
+/** SVG path `d` for a card with two opposite corners cut at 45°, the
+ * angular "clip-corner panel" shape video-generator's loop-method reel
+ * uses (there, a CSS `clip-path: polygon(...)` on an HTML div — this is
+ * the same shape expressed as an SVG path, since flow-gif's node cards
+ * are SVG `<rect>`s, not HTML elements). Used as an alternate to a plain
+ * rounded `<rect>` when a post's `theme.nodeShape` asks for it — a
+ * genuinely different component language, not just a different color,
+ * per video-generator's CLAUDE.md: "the component language should
+ * differ, not just its color." */
+function clipCornerPath(w, h, c = 20) {
+  return `M 0,0 L ${w - c},0 L ${w},${c} L ${w},${h} L ${c},${h} L 0,${h - c} Z`;
+}
+
+/** Point string for a flat-side-up regular hexagon of radius `r`, centered
+ * at the origin — an alternate step-badge shape ("seal/stamp" impression)
+ * for a post whose `theme.stepBadgeShape` is `'hex'`, instead of the
+ * default filled circle. */
+/** '#rrggbb' -> 'r, g, b', for building an rgba() glow color from a
+ * theme's hex accent — box-shadow/drop-shadow can't take a CSS custom
+ * property mixed with a literal alpha, so the accent has to be expanded
+ * to raw components once here rather than hardcoded per theme. */
+function hexToRgbTriplet(hex) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) return '63, 208, 201';
+  return [1, 2, 3].map((i) => parseInt(m[i], 16)).join(', ');
+}
+
+function hexPoints(r) {
+  const pts = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 180) * (60 * i - 90);
+    pts.push(`${(r * Math.cos(a)).toFixed(2)},${(r * Math.sin(a)).toFixed(2)}`);
+  }
+  return pts.join(' ');
+}
+
+// Blueprint (the default, original theme — see CLAUDE.md's "Visual
+// identity" section) plus a second, genuinely distinct system: "Audit"
+// (amber/violet on near-black, clip-corner panels, hex step badges, a
+// rotating radar-sweep + fine-grid background instead of static dots).
+// A post opts in via its manifest's top-level `theme: 'audit'` field;
+// omitting it keeps the exact original Blueprint look byte-for-byte —
+// see CLAUDE.md: "prefer adding a second theme... over mutating the
+// existing one," the same rule templates/carousel.mjs already documents.
+const THEMES = {
+  blueprint: {
+    colors: {
+      bg: '#0b1220', bg2: '#101a2c', accent: '#3fd0c9', accent2: '#6c8bff',
+      warn: '#ffb454', text: '#eef2f8', muted: '#93a1bb',
+      border: 'rgba(148, 172, 214, 0.30)', card: 'rgba(255, 255, 255, 0.05)',
+    },
+    sceneBg: '#05070c',
+    displayFont: 'Space Grotesk',
+    nodeShape: 'rounded',
+    stepBadgeShape: 'circle',
+    bgTexture: 'dots',
+  },
+  audit: {
+    colors: {
+      bg: '#160b06', bg2: '#241206', accent: '#e8a33d', accent2: '#8b6bf0',
+      warn: '#ff6b5e', text: '#f8efe3', muted: '#c2a68a',
+      border: 'rgba(232, 163, 61, 0.28)', card: 'rgba(255, 255, 255, 0.045)',
+    },
+    sceneBg: '#0a0504',
+    displayFont: 'Poppins',
+    nodeShape: 'clip-corner',
+    stepBadgeShape: 'hex',
+    bgTexture: 'scan',
+  },
+};
+
 /**
  * @param {object} opts
  * @param {string} opts.title
@@ -96,6 +172,10 @@ function iconAt(svg, x, y, size, colorVar) {
  *   literally about Claude Code, so crediting the actual mark beats a
  *   generic robot icon).
  * @param {string} [opts.brandBadgeLabel] Text next to `brandBadge`.
+ * @param {'blueprint'|'audit'} [opts.theme] Which visual system to render
+ *   with — see the `THEMES` map above. Defaults to `'blueprint'`, the
+ *   original system, so an existing manifest with no `theme` field is
+ *   unaffected.
  */
 export function buildFlowGifHtml({
   title,
@@ -107,7 +187,10 @@ export function buildFlowGifHtml({
   loopMs = 4000,
   brandBadge,
   brandBadgeLabel,
+  theme = 'blueprint',
 }) {
+  const T = THEMES[theme] || THEMES.blueprint;
+  const accentRgb = hexToRgbTriplet(T.colors.accent);
   const centerX = (n) => n.x + n.w / 2;
   const lineX = centerX(nodes[0]);
 
@@ -151,9 +234,9 @@ export function buildFlowGifHtml({
       const after = Math.min(100, centerPct + 6).toFixed(2);
       return `
         @keyframes pulse-${n.id} {
-          0%, ${before}% { box-shadow: 0 0 0 rgba(63, 208, 201, 0); border-color: var(--border); }
-          ${centerPct.toFixed(2)}% { box-shadow: 0 0 42px 6px rgba(63, 208, 201, 0.55); border-color: var(--accent); }
-          ${after}%, 100% { box-shadow: 0 0 0 rgba(63, 208, 201, 0); border-color: var(--border); }
+          0%, ${before}% { box-shadow: 0 0 0 rgba(${accentRgb}, 0); border-color: var(--border); }
+          ${centerPct.toFixed(2)}% { box-shadow: 0 0 42px 6px rgba(${accentRgb}, 0.55); border-color: var(--accent); }
+          ${after}%, 100% { box-shadow: 0 0 0 rgba(${accentRgb}, 0); border-color: var(--border); }
         }`;
     })
     .join('\n');
@@ -216,16 +299,24 @@ export function buildFlowGifHtml({
       // number is real structure, not decoration (see CLAUDE.md
       // artifact-design's "structure is information" principle, applied
       // here too even though this diagram isn't an Artifact page).
+      const stepBadgeShape =
+        T.stepBadgeShape === 'hex'
+          ? `<polygon points="${hexPoints(STEP_R)}" />`
+          : `<circle r="${STEP_R}" />`;
       const stepBadge = `
     <g class="step-badge" transform="translate(${-STEP_R * 0.4}, ${-STEP_R * 0.4})">
-      <circle r="${STEP_R}" />
+      ${stepBadgeShape}
       <text text-anchor="middle" dominant-baseline="middle" dy="1">${i + 1}</text>
     </g>`;
       const labelY = ICON_CENTER_Y + LOGO_BADGE / 2 + (n.h - (ICON_CENTER_Y + LOGO_BADGE / 2)) / 2;
+      const nodeShapeEl =
+        T.nodeShape === 'clip-corner'
+          ? `<path d="${clipCornerPath(n.w, n.h, 22)}" />`
+          : `<rect width="${n.w}" height="${n.h}" rx="20" />`;
       return `
     <g class="node" style="animation: pulse-${n.id} ${loopMs}ms ease infinite;"
        transform="translate(${n.x}, ${n.y})">
-      <rect width="${n.w}" height="${n.h}" rx="20" />
+      ${nodeShapeEl}
       ${logoEl}
       ${iconEl}
       <text x="${cx}" y="${labelY}" text-anchor="middle" dominant-baseline="middle">${esc(n.label)}</text>
@@ -337,11 +428,15 @@ export function buildFlowGifHtml({
           const iconEl = hasIcon
             ? iconAt(icon(branch.icon), BRANCH_PAD, branch.h / 2 - BRANCH_ICON / 2, BRANCH_ICON, 'var(--warn)')
             : '';
+          const branchShapeEl =
+            T.nodeShape === 'clip-corner'
+              ? `<path d="${clipCornerPath(branch.w, branch.h, 16)}" />`
+              : `<rect width="${branch.w}" height="${branch.h}" rx="16" />`;
           return `
     <path class="branch-line" d="M ${fx},${fy} L ${bx},${by}" />
     ${branchArrow}
     <g class="branch-node" transform="translate(${branch.x}, ${branch.y})">
-      <rect width="${branch.w}" height="${branch.h}" rx="16" />
+      ${branchShapeEl}
       ${iconEl}
       <text x="${textX}" y="${branch.h / 2}" text-anchor="${textAnchor}" dominant-baseline="middle">${esc(branch.label)}</text>
     </g>`;
@@ -367,6 +462,11 @@ export function buildFlowGifHtml({
     font-weight: 700; font-display: block;
   }
   @font-face {
+    font-family: 'Poppins';
+    src: url('../../assets/fonts/poppins/poppins-latin-800-normal.woff2') format('woff2');
+    font-weight: 800; font-display: block;
+  }
+  @font-face {
     font-family: 'Inter';
     src: url('../../assets/fonts/inter/inter-latin-600-normal.woff2') format('woff2');
     font-weight: 600; font-display: block;
@@ -378,18 +478,18 @@ export function buildFlowGifHtml({
   }
 
   :root {
-    --bg: #0b1220;
-    --bg-2: #101a2c;
-    --accent: #3fd0c9;
-    --accent-2: #6c8bff;
-    --warn: #ffb454;
-    --text: #eef2f8;
-    --muted: #93a1bb;
-    --border: rgba(148, 172, 214, 0.30);
-    --card: rgba(255, 255, 255, 0.05);
+    --bg: ${T.colors.bg};
+    --bg-2: ${T.colors.bg2};
+    --accent: ${T.colors.accent};
+    --accent-2: ${T.colors.accent2};
+    --warn: ${T.colors.warn};
+    --text: ${T.colors.text};
+    --muted: ${T.colors.muted};
+    --border: ${T.colors.border};
+    --card: ${T.colors.card};
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #05070c; }
+  html, body { margin: 0; padding: 0; background: ${T.sceneBg}; }
   .scene {
     position: relative;
     width: ${PAGE_W}px;
@@ -405,10 +505,36 @@ export function buildFlowGifHtml({
     background-size: 28px 28px;
     opacity: 0.5;
   }
+  /* "Audit" theme's background texture: a fine amber grid (evokes a
+     control-panel/checkpoint readout, distinct from Blueprint's soft
+     dot-grid) plus a slow radar-sweep wedge — a genuinely different
+     motion language, not just a recolor, per video-generator's "the kind
+     of background motion should differ, not just its color" rule. Real
+     motion driven purely by a CSS @keyframes rotation, so it scrubs
+     deterministically via the same Web Animations API trick as every
+     other animated element in this scene. */
+  .bg-scan-grid {
+    position: absolute; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(232,163,61,0.10) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,163,61,0.10) 1px, transparent 1px);
+    background-size: 54px 54px;
+    opacity: 0.6;
+  }
+  .bg-scan-sweep {
+    position: absolute; z-index: 0;
+    width: 1900px; height: 1900px;
+    top: 50%; left: 50%;
+    margin: -950px 0 0 -950px;
+    background: conic-gradient(from 0deg, rgba(232,163,61,0.16), transparent 22%, transparent 100%);
+    animation: sweep 6000ms linear infinite;
+    opacity: 0.7;
+  }
+  @keyframes sweep { to { transform: rotate(360deg); } }
   h1 {
     position: relative; z-index: 2;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 44px; font-weight: 700; line-height: 1.15;
+    font-family: '${T.displayFont}', sans-serif;
+    font-size: 44px; font-weight: ${T.displayFont === 'Poppins' ? 800 : 700}; line-height: 1.15;
     margin: 20px 72px 0 72px;
   }
   /* In normal flow, above the title, not absolutely positioned beside
@@ -446,7 +572,7 @@ export function buildFlowGifHtml({
 
   .dot {
     fill: var(--accent);
-    filter: drop-shadow(0 0 10px rgba(63, 208, 201, 0.9));
+    filter: drop-shadow(0 0 10px rgba(${accentRgb}, 0.9));
     offset-path: path('${dotPathD}');
     animation: travel ${loopMs}ms linear infinite;
   }
@@ -459,7 +585,7 @@ export function buildFlowGifHtml({
     100% { offset-distance: 100%; }
   }
 
-  .node rect {
+  .node rect, .node > path {
     fill: var(--card);
     stroke: var(--border);
     stroke-width: 2;
@@ -478,7 +604,7 @@ export function buildFlowGifHtml({
      diagram's own background color). */
   .node .logo-mark { opacity: 1; }
   .node .logo-mark rect { filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35)); }
-  .step-badge circle { fill: var(--accent); }
+  .step-badge circle, .step-badge polygon { fill: var(--accent); }
   .step-badge text {
     fill: #04231f;
     font-family: 'JetBrains Mono', monospace;
@@ -504,13 +630,13 @@ export function buildFlowGifHtml({
   }
   @keyframes march-branch { to { stroke-dashoffset: -320; } }
   .branch-arrow { fill: var(--warn); opacity: 0.7; }
-  .branch-node rect { fill: rgba(255, 180, 84, 0.08); stroke: var(--warn); stroke-width: 2; stroke-dasharray: 5 5; }
+  .branch-node rect, .branch-node > path { fill: rgba(255, 180, 84, 0.08); stroke: var(--warn); stroke-width: 2; stroke-dasharray: 5 5; }
   .branch-node text { fill: var(--warn); font-family: 'Inter', sans-serif; font-size: 19px; font-weight: 600; }
 </style>
 </head>
 <body>
   <div class="scene">
-    <div class="bg-dots"></div>
+    ${T.bgTexture === 'scan' ? '<div class="bg-scan-grid"></div><div class="bg-scan-sweep"></div>' : '<div class="bg-dots"></div>'}
     ${brandBadgeEl}
     <h1>${esc(title)}</h1>
     <svg class="diagram" viewBox="0 0 ${PAGE_W} ${PAGE_H}" width="${PAGE_W}" height="${PAGE_H}">

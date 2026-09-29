@@ -421,7 +421,8 @@ linkedin-post-generator/
 ├── content/
 │   ├── example-rag-guardrails.json   Sample manifest (all 6 slide types, no icons — tests the no-icon path)
 │   ├── speculative-decoding.json     Sample manifest using icons + a stat "compare" bar chart
-│   └── jev-claude-code.flow.json     Sample animated-GIF flow manifest — see "Animated GIF posts"
+│   ├── jev-claude-code.flow.json     Sample animated-GIF flow manifest, "blueprint" theme — see "Animated GIF posts"
+│   └── agent-governance.flow.json    Flow manifest using the "audit" theme — see "Visual identity"
 ├── assets/
 │   ├── fonts/              Vendored webfonts (.woff2, OFL) — see "Typography"
 │   ├── icons/              Vendored icon sets incl. tabler/ (.svg) — see "Slide manifest schema"
@@ -722,20 +723,53 @@ Adding a new vendored family follows the identical `bun add --no-save`
 "Typography house style" for the fuller rationale if this needs repeating
 for a fourth family.
 
-## Visual identity ("Blueprint" theme)
+## Visual identity ("Blueprint" theme, and flow-gif's second theme)
 
-The current (and, for now, only) theme lives entirely as CSS custom
-properties in `templates/carousel.mjs::baseStyles()` (`--bg`, `--accent`,
+`templates/carousel.mjs` still has exactly one theme, "Blueprint," living
+entirely as CSS custom properties in `baseStyles()` (`--bg`, `--accent`,
 `--accent-2`, `--text`, `--muted`, `--border`, `--card`) plus the matching
 `themeVariables` block in `scripts/mermaid.mjs::renderMermaid()` (Mermaid
 diagrams don't inherit page CSS — its palette has to be kept in sync by
 hand across both files). Deep slate background, static dot-grid texture,
-teal/blue accent gradient, soft top-right glow. If a future post needs a
-visibly distinct identity (different topic, different sub-brand), prefer
-adding a second theme (a `theme` field on the manifest selecting a second
-`themeVariables` object + a second CSS custom-property set) over mutating
-the existing one — don't silently reskin "Blueprint" out from under posts
-that already reference it.
+teal/blue accent gradient, soft top-right glow. If a future carousel post
+needs a visibly distinct identity, prefer adding a second theme (a `theme`
+field on the manifest selecting a second `themeVariables` object + a
+second CSS custom-property set) over mutating the existing one — don't
+silently reskin "Blueprint" out from under posts that already reference it.
+
+**`templates/flow-gif.mjs` already has a second theme, "Audit," added for
+`content/agent-governance.flow.json`** — prompted by direct feedback that
+reusing the exact same teal/rounded-card look for every flow-GIF post
+("why following the same template... be creative") was the same mistake
+`video-generator`'s CLAUDE.md warns against under "every reel needs its
+own visual identity": a post-specific *palette* isn't enough on its own if
+the *component language* (card shape, texture metaphor, display font)
+stays identical. A manifest opts in with a top-level `"theme": "audit"`
+field (omit it, or set `"blueprint"`, for the original look — the default,
+so every existing flow-GIF manifest is unaffected). The `THEMES` map in
+`flow-gif.mjs` is the single source of truth for what a theme actually
+varies:
+
+| | Blueprint (default) | Audit |
+| --- | --- | --- |
+| Palette | Teal/blue accent on navy-slate | Amber/violet accent on near-black |
+| Node shape | Rounded-rect cards (`<rect rx>`) | Clip-corner angular panels (`clipCornerPath()`, an SVG-path version of the same shape `video-generator`'s loop-method reel gets via a CSS `clip-path` polygon) |
+| Step badge | Filled circle | Regular hexagon (`hexPoints()`) — a "seal/stamp" read, fitting an audit/governance topic |
+| Background texture | Static dot-grid | A fine amber grid + a slowly rotating radar-sweep wedge (`@keyframes sweep`) — genuine motion, not just a recolor, and still fully compatible with `scripts/gif.mjs`'s deterministic Web-Animations scrub since it's just another CSS animation like the dot/pulse/status-row ones already in this file |
+| Display font | Space Grotesk 700 | Poppins 800 (the only two Poppins weights this repo vendors, see "Typography" — using 800 for real rather than requesting a synthetic 700 out of a Space-Grotesk-only weight file) |
+
+Every node/branch glow color that used to be a hardcoded Blueprint-teal
+`rgba(63, 208, 201, …)` literal (the pulse box-shadow, the traveling dot's
+drop-shadow) is now derived from the active theme's own accent via
+`hexToRgbTriplet()` — a straight hex hardcode wouldn't have recolored with
+the rest of the theme.
+
+**Adding a third theme**: add an entry to the `THEMES` object (colors +
+`sceneBg` + `displayFont` + `nodeShape` + `stepBadgeShape` + `bgTexture`),
+vendor any new font weight it needs (see "Typography"), and reference it
+from a manifest's `theme` field — no other code changes required, the
+node/branch/background rendering already branches on these theme fields
+rather than hardcoding Blueprint's shapes.
 
 ## Diagram engines
 
