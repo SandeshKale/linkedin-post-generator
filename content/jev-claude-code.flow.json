@@ -3,6 +3,8 @@
   "loopMs": 4200,
   "brandBadge": "anthropic",
   "brandBadgeLabel": "Claude Code",
+  "coverEyebrow": "AI CONTENT QUALITY GATE",
+  "coverSubtitle": "One API call judges 4 things about my content — before a single slide renders.",
   "nodes": [
     { "id": "manifest", "x": 80, "y": 245, "w": 400, "h": 130, "label": "Content Draft", "icon": "file-text" },
     { "id": "gate", "x": 80, "y": 422, "w": 400, "h": 130, "label": "Quality Check", "logo": "bun" },

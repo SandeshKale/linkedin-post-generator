@@ -1,3 +1,5 @@
+# Caption — "Behind the Scenes: How Jev Judges My Claude Code Pipeline"
+
 One API call judges 4 things about my content — using just 1,503 tokens. Before a single slide of this post was allowed to render.
 
 Claude Code can write a full content pipeline in an afternoon. What it can't do on its own is tell you whether the hook is actually good, or whether a diagram will still be legible once it's shrunk to a LinkedIn thumbnail. Jev (TypeSafe AI's System One model) plugs into exactly that gap — not a linter for syntax, a judge for quality, running before anything is allowed to build.
@@ -16,5 +18,3 @@ Claude Code can write a full content pipeline in an afternoon. What it can't do 
 ✅ A separate stage, not middleware — runs before the build script, never inside the deterministic render path, so rendering stays fully offline and reproducible whether or not the gate ever runs.
 
 🌍 Where else should an agentic coding pipeline have a judgment layer like this — code review? Commit messages? Something else entirely? Genuinely curious what you'd wire in.
-
-#ClaudeCode #GenAI #AIEngineering #Anthropic #LLMOps #AIagents #MachineLearning #SoftwareArchitecture #DeveloperTools #AIatScale #MLOps #ContentPipeline

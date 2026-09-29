@@ -298,20 +298,17 @@ const THEMES = {
  *   one x. See `content/agent-governance.flow.json` for a worked example
  *   and its lane-math comments.
  */
-export function buildFlowGifHtml({
-  title,
-  nodes,
-  branch,
-  branchFrom,
-  chips = [],
-  chipsAt,
-  loopMs = 4000,
-  brandBadge,
-  brandBadgeLabel,
-  theme = 'blueprint',
-  layout = 'column',
-}) {
-  const isZigzag = layout === 'zigzag';
+/**
+ * Resolves a manifest's `theme` field (a named preset string, a full
+ * custom object, or `{ extends: '<preset>', ...overrides }`) to a
+ * complete theme object merged over `blueprint`'s defaults — the exact
+ * logic `buildFlowGifHtml()` uses internally, pulled out and exported so
+ * `scripts/build-cover.mjs` (or any other one-off render that needs to
+ * "reuse the post's finished visual system verbatim," per the
+ * `cover-art` skill) resolves colors identically instead of
+ * re-implementing this merge and risking drift.
+ */
+export function resolveTheme(theme = 'blueprint') {
   const base = THEMES.blueprint;
   const named = typeof theme === 'string' ? THEMES[theme] : null;
   const custom = typeof theme === 'object' && theme ? theme : null;
@@ -326,11 +323,30 @@ export function buildFlowGifHtml({
   // for `colors` specifically — a custom theme naming only `accent` and
   // `warn` shouldn't have to restate every other color just to avoid
   // `undefined` falling through into the generated CSS.
-  const T = {
+  return {
     ...base,
     ...picked,
     colors: { ...base.colors, ...((named || extended)?.colors || {}), ...(custom?.colors || {}) },
   };
+}
+
+export { hexToRgbTriplet, DISPLAY_FONT_WEIGHTS, DISPLAY_FONT_SIZES };
+
+export function buildFlowGifHtml({
+  title,
+  nodes,
+  branch,
+  branchFrom,
+  chips = [],
+  chipsAt,
+  loopMs = 4000,
+  brandBadge,
+  brandBadgeLabel,
+  theme = 'blueprint',
+  layout = 'column',
+}) {
+  const isZigzag = layout === 'zigzag';
+  const T = resolveTheme(theme);
   const accentRgb = hexToRgbTriplet(T.colors.accent);
   const centerX = (n) => n.x + n.w / 2;
 

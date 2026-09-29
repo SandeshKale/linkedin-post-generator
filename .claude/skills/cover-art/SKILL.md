@@ -162,10 +162,24 @@ poster — pick based on what the cover is replacing.
       sees this one static image still understand the post's point? If
       not, the cover needs more of the "why," not just the "what."
 
-No reference implementation exists yet in this repo (first post to need
-one should write `scripts/build-cover.mjs` and update this note to point
-at it) — until then, read `video-generator`'s
-`reel-openai-loop-method/cover-build.mjs` end to end as the pattern to
-adapt, not copy verbatim (it's built for a 1080×1920 reel and GSAP-free
-static CSS, not this repo's 1080×1350/1080×1080 canvases or its
-`icons.mjs` helpers).
+**Reference implementation: `scripts/build-cover.mjs`** (generic across
+every flow manifest — unlike `video-generator`'s one-`cover-build.mjs`-
+per-reel pattern, this repo has a single shared flow-gif template to pull
+real theme/icon data from, so one script parameterized by manifest is
+enough). `bun scripts/build-cover.mjs content/<slug>.flow.json` writes
+`output/<slug>/cover.html` and screenshots it to `output/<slug>/cover.png`
+in one call. It composes an orbiting-icon ring from the flow manifest's
+own `nodes` (real `icons.mjs` art, never hand-copied SVG) around the
+`brandBadge` mark, resolves colors/fonts via `templates/flow-gif.mjs`'s
+exported `resolveTheme()` (so it can't drift from what the flow-GIF
+itself renders), and reads three cover-only manifest fields —
+`coverEyebrow`, `coverSubtitle`, optional `author`/`handle` — all written
+by hand, never auto-derived (see CLAUDE.md's "Every post ships the same
+level of production variation as video-generator" for the two layout
+gotchas hit building it: a square canvas didn't have enough vertical room,
+and a display-font-dependent title line count broke a hardcoded text
+offset). Use it as the starting point for a new post's cover rather than
+writing one from scratch; extend its orbit/lockup composition or add a
+second hero-graphic style (condensed path, radial burst — see "The
+pattern" above) if a post's content calls for a different shape, same
+"remix, don't just recolor" discipline as this repo's flow-gif themes.

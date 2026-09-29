@@ -2,9 +2,13 @@
 /**
  * Hydrates a JSON slide manifest (content/<slug>.json) into a self-contained
  * HTML carousel document (output/<slug>/carousel.html), then closes. Also
- * emits output/<slug>/caption.md from the manifest's optional `caption`/
- * `hashtags` fields, if present — the post's own text lives in the same
- * manifest as its media instead of drifting in a separate untracked doc.
+ * emits output/<slug>/caption.md and output/<slug>/hashtags.md from the
+ * manifest's optional `caption`/`hashtags` fields, if present — the post's
+ * own text lives in the same manifest as its media instead of drifting in a
+ * separate untracked doc. Two separate title-headed files rather than one
+ * combined caption+hashtags doc, matching video-generator's own per-reel
+ * caption.md/hashtags.md convention (see this repo's CLAUDE.md "Git /
+ * workflow conventions" for why output/ itself is committed at all).
  *
  * Usage: bun scripts/build.mjs <content/manifest.json>
  *
@@ -75,10 +79,17 @@ async function main() {
 
   if (manifest.caption) {
     const captionPath = resolve(outDir, 'caption.md');
-    const hashtagLine = (manifest.hashtags || []).map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ');
-    const captionDoc = hashtagLine ? `${manifest.caption}\n\n${hashtagLine}\n` : `${manifest.caption}\n`;
+    const captionDoc = `# Caption — "${manifest.title}"\n\n${manifest.caption}\n`;
     await writeFile(captionPath, captionDoc, 'utf8');
     console.log(`Wrote ${captionPath}`);
+  }
+
+  if ((manifest.hashtags || []).length) {
+    const hashtagsPath = resolve(outDir, 'hashtags.md');
+    const hashtagLine = manifest.hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ');
+    const hashtagsDoc = `# Hashtags — "${manifest.title}"\n\n${hashtagLine}\n`;
+    await writeFile(hashtagsPath, hashtagsDoc, 'utf8');
+    console.log(`Wrote ${hashtagsPath}`);
   }
 
   if (manifest.slides.some((s) => s.alt)) {

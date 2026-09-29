@@ -5,6 +5,8 @@
   "loopMs": 7800,
   "brandBadge": "anthropic",
   "brandBadgeLabel": "Claude Code",
+  "coverEyebrow": "AGENTIC AI GOVERNANCE",
+  "coverSubtitle": "The 6-step gate that stops an agent's output from shipping unchecked.",
   "_layoutNotes": "Zigzag lane math (see flow-gif.mjs's 'zigzag' JSDoc): two lanes, LEFT x=60 and RIGHT x=560, both w=460. Nodes alternate lane every row; each node's note/chips render in whichever lane it is NOT occupying that row. Row step is 155px, except judge->build (590->845, a 255px step) to leave room in judge's own left lane for the branch box directly below it (judge's right lane is already spoken for by its 4 chips). y=230 (an earlier draft) put node 1 directly under this title's own second line once it wrapped to two lines — caught only by rendering and looking, not by reading the coordinates (see CLAUDE.md's 'Verify visually' rule) — fixed by starting at y=280 instead. Every gap below was hand-checked for zero overlap, then re-confirmed by rendering.",
   "nodes": [
     { "id": "draft", "x": 60, "y": 280, "w": 460, "h": 130, "label": "Agent Proposes Action", "icon": "file-text", "note": "Never ships without a check" },

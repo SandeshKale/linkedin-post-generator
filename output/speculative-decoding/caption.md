@@ -1,3 +1,5 @@
+# Caption — "Speculative Decoding: The Math That Makes LLM Inference Faster For Free"
+
 Your LLM isn't slow because it's short on compute. It's slow because generating one token at a time forces the GPU to reload every weight from memory on every single step — and that memory transfer, not the matmul, is what you're actually waiting on.
 
 Speculative decoding fixes this. Save this if you ship anything on top of an LLM API or your own inference stack.
@@ -17,5 +19,3 @@ Google Research's original result: a 60M-parameter draft model verified against 
 → A separate draft model means a second KV cache. EAGLE-style self-drafting reuses the target model's own hidden states instead of running an independent model.
 
 Full breakdown — the algorithm, the rejection-sampling math, and the diagram — in the carousel below.
-
-#GenAI #MachineLearning #LLM #AIEngineering #MLOps #ModelServing #LLMInference #SpeculativeDecoding #DeepLearning #SoftwareArchitecture #Transformers #NeuralNetworks #SystemsDesign #AIatScale

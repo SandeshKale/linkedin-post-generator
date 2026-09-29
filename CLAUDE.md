@@ -416,6 +416,89 @@ the same "verify visually" discipline this file already asks for
 everywhere else, rather than assuming a short-looking string is short
 enough.
 
+## Every post ships the same level of production variation as video-generator
+
+Direct instruction, after `output/` was already switched to committed
+(see "Git / workflow conventions"): match the depth of what
+`video-generator`'s own per-reel output carries, not just this repo's
+final media file. A `video-generator` reel folder
+(`reel-<slug>/`) never ships just the `.mp4` — it's the `.mp4`/`.html`
+render pair, a **purpose-built `cover.png`** (+ the `cover.html`/
+`cover-build.mjs` that made it), and **separate `caption.md` and
+`hashtags.md`** files. This repo now matches that for every real post:
+
+- **`cover.png` + `cover.html`** — every `output/<slug>/` needs a
+  deliberately composed poster image, not a mid-loop GIF frame. This is
+  what the `cover-art` skill (`.claude/skills/cover-art/SKILL.md`) already
+  mandated but this repo had no reference implementation for yet;
+  `scripts/build-cover.mjs` is that implementation — see its own header
+  comment and "Cover script details" below.
+- **`caption.md` and `hashtags.md` as two separate files**, not one
+  combined doc — matches `video-generator`'s own per-reel convention
+  exactly (each file opens with a `# Caption — "<title>"` /
+  `# Hashtags — "<title>"` heading). `scripts/build.mjs` writes both from
+  a carousel manifest's `caption`/`hashtags` fields automatically; a
+  flow-GIF post's pair is still hand-written (no schema field for either
+  on a flow manifest — same as before), just now as two files instead of
+  one.
+
+### Cover script details (`scripts/build-cover.mjs`)
+
+Takes the same `content/<slug>.flow.json` `build-flow-gif.mjs` does, plus
+three cover-only optional fields, **never auto-derived** from the flow's
+own node labels (same "highest quality input, write it by hand" rule this
+file already applies to `alt` text and flow-GIF captions):
+`coverEyebrow` (small tracked-caps line), `coverSubtitle` (one
+plain-language sentence stating the hook), and `author`/`handle` (defaults
+to this repo's own usual "Sandesh Kale" / "GenAI Solutions Architect" if
+omitted).
+
+Composes an **orbiting-icon ring** — every flow node's own `icon`/`logo`/
+`brand` art (reusing `scripts/icons.mjs`'s real loaders, never a
+hand-copied SVG path, per the `cover-art` skill's own rule) spaced evenly
+around the post's `brandBadge` mark at the ring's center — a genuinely
+different composition from the flow-GIF's own node-column/zigzag layout,
+not a frame lifted from it. Colors/fonts/shapes are pulled from the exact
+same resolved theme the flow-GIF itself renders with, via a new exported
+`resolveTheme()` in `templates/flow-gif.mjs` (pulled out of
+`buildFlowGifHtml()`'s own theme-merge logic specifically so this script
+can't drift from it — same `hexToRgbTriplet()`/`DISPLAY_FONT_WEIGHTS`/
+`DISPLAY_FONT_SIZES` helpers are exported alongside it for the same
+reason). Rendered once with a plain Playwright screenshot (`1080×1350`,
+`deviceScaleFactor: 2`) — no Web Animations scrubbing, a cover has no
+timeline.
+
+**Gotcha: a 1080×1080 square canvas (the skill's own "standalone
+flow-GIF poster" suggestion) didn't have enough vertical room and the
+title/subtitle/footer text block collided outright** — a 2-line title
+ending around y=930 left only ~50px before a 2-line subtitle's own
+hardcoded `top`, which itself ran straight into the footer avatar.
+Switched to this repo's standard `1080×1350` canvas (same one
+`templates/carousel.mjs` uses) instead — matches the "pick based on what
+the cover is replacing" guidance in the skill, and a flow-GIF post
+replacing a carousel is exactly this repo's own case. Caught by
+rendering and looking, not by reading the CSS.
+
+**Gotcha: the same class of bug this file already documents twice for
+flow-GIF layout (node-height/spacing, zigzag title-collision) hit the
+cover script too — a display-font-dependent line count broke a
+hardcoded absolute pixel offset.** JetBrains Mono (the "dossier" theme's
+display font) is proportionally wider per declared px than Space
+Grotesk/Poppins, so `agent-governance`'s title wraps to 3 lines where the
+other two themes' fonts wrap to 2 — with the title and subtitle each
+independently `position: absolute; top: <hardcoded px>`, the 3rd title
+line ran straight into the subtitle sitting at a fixed offset tuned for
+2 lines. Fixed the general case, not just this one instance: title and
+subtitle now share one normal-flow container (`margin-top` between them)
+inside a single absolutely-positioned wrapper, so any line count self-
+adjusts within the same generous envelope between the ring and the
+footer, instead of two independently-guessed pixel offsets that only
+happen to work for one specific line count. **General lesson (third time
+this exact bug class has hit this repo): a display-font-dependent line
+count and a hardcoded absolute `top` never coexist safely — use flow
+layout (margin, not two separate absolute offsets) wherever text volume
+can vary by theme.**
+
 ## Content quality gate (Jev)
 
 `scripts/quality-gate.mjs` runs a manifest's content past [Jev](https://typesafe.ai)
@@ -516,7 +599,8 @@ linkedin-post-generator/
 │   ├── jev.mjs             Jev/TypeSafe AI client wrapper (JEV_API_KEY → TypeSafeClient)
 │   ├── quality-gate.mjs    Manifest → Jev content-quality judgment (advisory or --strict), pre-build only
 │   ├── build-flow-gif.mjs  Flow manifest → animated-scene HTML — see "Animated GIF posts"
-│   └── gif.mjs             Animated scene HTML → looping .gif, via deterministic Web Animations scrubbing
+│   ├── gif.mjs             Animated scene HTML → looping .gif, via deterministic Web Animations scrubbing
+│   └── build-cover.mjs     Flow manifest → cover.html + cover.png poster — see "Every post ships a cover image"
 ├── templates/
 │   ├── carousel.mjs        buildHtml({title, author, handle, slides}) — CSS + per-slide-type markup
 │   └── flow-gif.mjs        buildFlowGifHtml({nodes, edges, ...}) — animated flow-diagram scene markup
@@ -532,7 +616,9 @@ linkedin-post-generator/
 │   ├── logos/, photos/     Brand marks, stock photos — see "Asset library" (licensing caveats)
 │   ├── animations/         From video-generator; NOT directly usable here — see "Asset library"
 │   └── VIDEO_GENERATOR_ATTRIBUTION.md   Per-source license table for the merged-in set
-├── output/                 Generated, gitignored — carousel.html/.pdf, slide-NN.png, caption.md, alt-text.md per slug
+├── output/                 Generated, committed — carousel.html/.pdf, slide-NN.png (or flow-scene.html/flow.gif),
+│                           cover.html/cover.png, caption.md, hashtags.md, alt-text.md per slug — see "Every post
+│                           ships a cover image" and "Git / workflow conventions"
 ├── package.json            Deps: playwright, mermaid, @terrastruct/d2, shiki, zod, @typesafe-ai/sdk
 ├── bun.lock                Committed lockfile — see "Runtime & package manager"
 └── CLAUDE.md               This file
@@ -1144,29 +1230,29 @@ raster-adjacent exception, but SVG stays sharp at any zoom.
 
 - `output/` is **committed**, per direct instruction: every post's actual
   media (carousel `.pdf`/`slide-NN.png`, or flow-GIF `flow-scene.html`/
-  `flow.gif`) and its `caption.md` (caption + hashtags, ready to paste
-  into LinkedIn's composer) go into the repo alongside the manifest that
-  produced them — not just `content/*.json` on its own. This reverses an
-  earlier version of this rule, which treated `output/` as gitignored and
-  fully reproducible-on-demand (still true technically — `build.mjs` +
-  `render.mjs`/`gif.mjs` regenerate it bit-for-bit from the same manifest
-  and content, only the fonts/theme/timing that were live *at generation
-  time* determine the exact bytes) — the reproducibility argument doesn't
-  cover *finding* what was actually published without re-running the
-  pipeline, which committing the output does. A flow-GIF post's
-  `caption.md` isn't written by any script (`build-flow-gif.mjs` has no
-  caption/hashtags field on its manifest schema, unlike the carousel
-  path's `caption`/`hashtags` manifest fields that `build.mjs` writes out
-  automatically) — write it by hand, same discipline as writing `alt`
-  text by hand, and match its content to what the diagram's nodes/chips
-  actually say. Every real post's `output/<slug>/` needs, at minimum, its
-  rendered media plus a `caption.md` ending in a space-joined `#tags`
-  line — commit both together, not media without the caption or vice
-  versa. (This differs from the *previous* documented reasoning that drew
-  a media-cost distinction with `video-generator`'s committed `.mp4`s —
-  that distinction no longer applies now that this repo's own output is
-  committed too, for the same "the record of what was published lives in
-  the repo" reason, not a render-cost one.)
+  `flow.gif`), its purpose-built `cover.html`/`cover.png`, and its
+  `caption.md`/`hashtags.md` (ready to paste into LinkedIn's composer) go
+  into the repo alongside the manifest that produced them — not just
+  `content/*.json` on its own. This reverses an earlier version of this
+  rule, which treated `output/` as gitignored and fully
+  reproducible-on-demand (still true technically — `build.mjs`/
+  `build-flow-gif.mjs` + `render.mjs`/`gif.mjs`/`build-cover.mjs`
+  regenerate it bit-for-bit from the same manifest and content, only the
+  fonts/theme/timing that were live *at generation time* determine the
+  exact bytes) — the reproducibility argument doesn't cover *finding*
+  what was actually published without re-running the pipeline, which
+  committing the output does. See "Every post ships the same level of
+  production variation as video-generator" above for the full
+  cover.png/caption.md/hashtags.md requirement and what's hand-written
+  vs. script-generated. Every real post's `output/<slug>/` needs, at
+  minimum, its rendered media, a `cover.png`, and a `caption.md` +
+  `hashtags.md` pair — commit all of it together, not media without the
+  caption/cover or vice versa. (This differs from the *previous*
+  documented reasoning that drew a media-cost distinction with
+  `video-generator`'s committed `.mp4`s — that distinction no longer
+  applies now that this repo's own output is committed too, for the same
+  "the record of what was published lives in the repo" reason, not a
+  render-cost one.)
 - Verify visually, don't just trust the generated markup: read a couple
   of the rendered `slide-NN.png` files back (or open the PDF) after every
   template/build change and actually look — text clipping, low-contrast
