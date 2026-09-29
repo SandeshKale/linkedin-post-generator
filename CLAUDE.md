@@ -784,8 +784,8 @@ specify what it changes:
 | | Blueprint (default) | Audit | Dossier |
 | --- | --- | --- | --- |
 | Palette | Teal/blue on navy-slate | Amber/violet on near-black | Ink-red on cream paper |
-| Node shape | Rounded-rect (`<rect rx>`) | Clip-corner (`clipCornerPath()`, an SVG-path version of the CSS `clip-path` polygon `video-generator`'s loop-method reel uses) | Rounded, dashed border (`nodeBorderStyle: 'dashed'`) — a "redacted folder" look |
-| Step badge | Filled circle | Regular hexagon (`hexPoints()`) | Filled circle |
+| Node shape | Rounded-rect (`<rect rx>`) | Clip-corner (`clipCornerPath()`, an SVG-path version of the CSS `clip-path` polygon `video-generator`'s loop-method reel uses) | An actual manila-folder silhouette (`folderTabPath()`, dashed border) — a real *silhouette*, not a rectangle with a different trim, after feedback that clip-corner/dashed-rect variants still all read as "a rectangle" |
+| Step badge | Filled circle | Regular hexagon (`hexPoints()`) | Diamond (`diamondPoints()`) — a wax-seal/official-mark read instead of a rubber-stamp circle |
 | Background | Static dot-grid | Fine grid + rotating radar-sweep (`@keyframes sweep`) | A vignette (`bgTexture: 'paper'`) — see the GIF-size gotcha below for why it's *just* a vignette |
 | Connector | Straight, `--border` color | Straight, `--border` color | Hand-wobbled (`connectorStyle: 'wobble'`, an SVG `feTurbulence`/`feDisplacementMap` filter) in a dedicated `connectorColor`, not `--border` (see the contrast gotcha below) |
 | Dot arrival | Soft glow pulse (`dotStyle: 'glow'`) | Same | A scale "thwack" + border darken (`dotStyle: 'ink'`), no glow — a stamp doesn't emit light |
@@ -832,6 +832,23 @@ wasn't worth 10MB on a file that has to actually upload somewhere.
 **Check a themed background's real GIF file size before calling a texture
 done, the same way `--fps` already gets checked — a texture that looks
 fine as a single PNG can still be a compression disaster as a GIF.**
+
+**Gotcha: "a rectangle with a different border/corner treatment" doesn't
+read as a different component shape, no matter how many border variants
+you make.** Clip-corner panels and a dashed-border rounded-rect were both
+still, fundamentally, a rectangle — direct feedback ("still not happy
+with component shapes") after both. `nodeShape: 'folder-tab'`
+(`folderTabPath()`) is a real change of *silhouette*: a rectangular body
+with a trapezoidal tab standing off its own top-left corner, the way a
+physical case-file folder looks — the outline itself is no longer a
+rectangle, not just a rectangle with different corners. Pushing an
+icon/logo down by a fixed `contentYOffset` (14px) was needed alongside
+it — the icon badge's own top-left corner otherwise pokes through the
+tab's short diagonal edge, since the tab occupies real space at the top
+of the shape rather than just decorating an existing rectangle's border.
+**When a "different shape" request keeps coming back, check whether every
+attempt so far actually changed the outline, or just the outline's
+trim** — those are not the same fix.
 
 **Adding a fourth theme**: add an entry to the `THEMES` object (`colors` +
 `sceneBg` + `displayFont` + `nodeShape` + `nodeBorderStyle` +

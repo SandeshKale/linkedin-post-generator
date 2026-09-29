@@ -80,6 +80,32 @@ function clipCornerPath(w, h, c = 20) {
   return `M 0,0 L ${w - c},0 L ${w},${c} L ${w},${h} L ${c},${h} L 0,${h - c} Z`;
 }
 
+/** SVG path `d` for an actual manila-folder silhouette — a rectangular
+ * body with a trapezoidal tab standing up off its top-left corner, the
+ * way a physical case-file folder looks, rather than a rectangle with
+ * its corners styled differently. Added after feedback that clip-corner/
+ * dashed-border/hexagon-badge variants were all still fundamentally "a
+ * rectangle with a different trim" — a real theme-specific *silhouette*,
+ * not another rectangle treatment, for a post whose whole visual
+ * metaphor is a stack of case files. `tabW` defaults to 42% of the
+ * card's own width, `tabH` to a fixed 22px — proportional to the card so
+ * it still reads correctly at this repo's one canvas size (1080×1350)
+ * without a caller having to tune it per node. The `Z` close at the end
+ * draws the tab's own left edge as a straight diagonal for free — no
+ * separate path segment needed for it. */
+function folderTabPath(w, h, tabW = w * 0.42, tabH = 22) {
+  const notch = 10;
+  return `M ${notch},0 L ${tabW},0 L ${tabW + tabH},${tabH} L ${w},${tabH} L ${w},${h} L 0,${h} L 0,${tabH} Z`;
+}
+
+/** Point string for a diamond (a square rotated 45°) of "radius" `r`
+ * (half its own diagonal), centered at the origin — an alternate step
+ * badge shape, a wax-seal/official-mark read rather than a circular
+ * rubber-stamp read. */
+function diamondPoints(r) {
+  return `0,${-r} ${r},0 0,${r} ${-r},0`;
+}
+
 /** Point string for a flat-side-up regular hexagon of radius `r`, centered
  * at the origin — an alternate step-badge shape ("seal/stamp" impression)
  * for a post whose `theme.stepBadgeShape` is `'hex'`, instead of the
@@ -162,9 +188,9 @@ const THEMES = {
     },
     sceneBg: '#d9cba8',
     displayFont: 'JetBrains Mono',
-    nodeShape: 'rounded',
+    nodeShape: 'folder-tab',
     nodeBorderStyle: 'dashed',
-    stepBadgeShape: 'circle',
+    stepBadgeShape: 'diamond',
     bgTexture: 'paper',
     connectorStyle: 'wobble',
     dotStyle: 'ink',
@@ -224,8 +250,10 @@ const THEMES = {
  *   `muted`, `border`, `card`), `sceneBg`, `displayFont` (must be a
  *   family this file `@font-face`-declares — see "Typography" in
  *   CLAUDE.md before reaching for a new one), `nodeShape`
- *   (`'rounded'|'clip-corner'`), `nodeBorderStyle` (`'solid'|'dashed'`),
- *   `stepBadgeShape` (`'circle'|'hex'`), `bgTexture`
+ *   (`'rounded'|'clip-corner'|'folder-tab'` — `'folder-tab'` is an actual
+ *   manila-folder silhouette, `folderTabPath()`, not a rectangle with a
+ *   different trim), `nodeBorderStyle` (`'solid'|'dashed'`),
+ *   `stepBadgeShape` (`'circle'|'hex'|'diamond'`), `bgTexture`
  *   (`'dots'|'scan'|'paper'`), `connectorStyle` (`'straight'|'wobble'` —
  *   `'wobble'` runs the connector through an SVG `feTurbulence`/
  *   `feDisplacementMap` filter for a hand-inked look), `dotStyle`
@@ -448,23 +476,35 @@ export function buildFlowGifHtml({
       const stepBadgeShape =
         T.stepBadgeShape === 'hex'
           ? `<polygon points="${hexPoints(STEP_R)}" />`
-          : `<circle r="${STEP_R}" />`;
+          : T.stepBadgeShape === 'diamond'
+            ? `<polygon points="${diamondPoints(STEP_R * 1.15)}" />`
+            : `<circle r="${STEP_R}" />`;
       const stepBadge = `
     <g class="step-badge" transform="translate(${-STEP_R * 0.4}, ${-STEP_R * 0.4})">
       ${stepBadgeShape}
       <text text-anchor="middle" dominant-baseline="middle" dy="1">${i + 1}</text>
     </g>`;
-      const labelY = ICON_CENTER_Y + LOGO_BADGE / 2 + (n.h - (ICON_CENTER_Y + LOGO_BADGE / 2)) / 2;
+      // 'folder-tab' pushes real card content (icon/logo/label) down
+      // clear of the tab silhouette at the top of the shape, otherwise
+      // the icon badge's own top-left corner pokes through the tab's
+      // short diagonal edge — checked by rendering, not assumed from the
+      // path math alone.
+      const contentYOffset = T.nodeShape === 'folder-tab' ? 14 : 0;
       const nodeShapeEl =
         T.nodeShape === 'clip-corner'
           ? `<path d="${clipCornerPath(n.w, n.h, 22)}" />`
-          : `<rect width="${n.w}" height="${n.h}" rx="20" />`;
+          : T.nodeShape === 'folder-tab'
+            ? `<path d="${folderTabPath(n.w, n.h)}" />`
+            : `<rect width="${n.w}" height="${n.h}" rx="20" />`;
+      const labelY = contentYOffset + ICON_CENTER_Y + LOGO_BADGE / 2 + (n.h - contentYOffset - (ICON_CENTER_Y + LOGO_BADGE / 2)) / 2;
       return `
     <g class="node" style="animation: pulse-${n.id} ${loopMs}ms ease infinite;"
        transform="translate(${n.x}, ${n.y})">
       ${nodeShapeEl}
-      ${logoEl}
-      ${iconEl}
+      <g transform="translate(0, ${contentYOffset})">
+        ${logoEl}
+        ${iconEl}
+      </g>
       <text x="${cx}" y="${labelY}" text-anchor="middle" dominant-baseline="middle">${esc(n.label)}</text>
       ${stepBadge}
     </g>`;
