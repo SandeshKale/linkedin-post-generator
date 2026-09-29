@@ -1,6 +1,6 @@
 {
   "title": "Agents Don't Fail From Bad Models. They Fail From Missing Governance.",
-  "theme": "dossier",
+  "theme": { "extends": "dossier", "stamp": null },
   "layout": "zigzag",
   "loopMs": 7800,
   "brandBadge": "anthropic",

@@ -315,12 +315,22 @@ export function buildFlowGifHtml({
   const base = THEMES.blueprint;
   const named = typeof theme === 'string' ? THEMES[theme] : null;
   const custom = typeof theme === 'object' && theme ? theme : null;
-  const picked = named || custom || base;
+  // A custom object may carry `extends: '<preset name>'` to start from a
+  // named preset (e.g. 'dossier') and override just a handful of fields
+  // — e.g. `{ extends: 'dossier', stamp: null }` to drop that preset's
+  // watermark on one post without forking its whole color/shape/texture
+  // definition into every manifest that wants a small tweak.
+  const extended = custom && typeof custom.extends === 'string' ? THEMES[custom.extends] : null;
+  const picked = { ...base, ...(named || extended || {}), ...(custom || {}) };
   // Shallow-merge over blueprint's defaults, with a one-level-deeper merge
   // for `colors` specifically — a custom theme naming only `accent` and
   // `warn` shouldn't have to restate every other color just to avoid
   // `undefined` falling through into the generated CSS.
-  const T = { ...base, ...picked, colors: { ...base.colors, ...(picked.colors || {}) } };
+  const T = {
+    ...base,
+    ...picked,
+    colors: { ...base.colors, ...((named || extended)?.colors || {}), ...(custom?.colors || {}) },
+  };
   const accentRgb = hexToRgbTriplet(T.colors.accent);
   const centerX = (n) => n.x + n.w / 2;
 

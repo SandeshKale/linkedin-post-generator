@@ -936,6 +936,20 @@ preset. Vendor any new font weight it needs (see "Typography"), and
 **render the real GIF and check its file size** before considering a new
 background texture finished.
 
+**Overriding one field of a named preset without forking the whole
+preset**: `theme` also accepts `{ extends: '<preset name>', ...overrides }`
+— `buildFlowGifHtml()` resolves `extends` to that preset, then
+shallow-merges `overrides` on top of it (same one-level-deeper merge for
+`colors` the plain named/custom paths already got). This exists because
+`dossier`'s own reference stamp (`{ text: 'CONFIDENTIAL', rotate: -18 }`,
+baked into the preset to sell its "redacted case-file" read) isn't
+appropriate on every dossier-themed post — `agent-governance.flow.json`
+dropped it with `theme: { extends: 'dossier', stamp: null }` rather than
+copying all ten of dossier's other fields into the manifest just to
+change one. Any preset field can be overridden the same way; `stamp: null`
+specifically is read as "no stamp" by the template (`${T.stamp ? ... :
+''}`), not "use the preset's own default."
+
 ## Layout ("column", and flow-gif's "zigzag" layout)
 
 A flow-GIF manifest's `layout` field (default `'column'`) controls the
