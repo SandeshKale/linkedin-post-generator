@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Speculative Decoding: The Math That Makes LLM Inference Faster For Free</title>
+<style>
+    @page { size: 1080px 1350px; margin: 0; }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+
+    @font-face {
+      font-family: 'Space Grotesk';
+      src: url('../../assets/fonts/space-grotesk/space-grotesk-latin-700-normal.woff2') format('woff2');
+      font-weight: 700; font-display: block;
+    }
+    @font-face {
+      font-family: 'Space Grotesk';
+      src: url('../../assets/fonts/space-grotesk/space-grotesk-latin-500-normal.woff2') format('woff2');
+      font-weight: 500; font-display: block;
+    }
+    @font-face {
+      font-family: 'Inter';
+      src: url('../../assets/fonts/inter/inter-latin-400-normal.woff2') format('woff2');
+      font-weight: 400; font-display: block;
+    }
+    @font-face {
+      font-family: 'Inter';
+      src: url('../../assets/fonts/inter/inter-latin-600-normal.woff2') format('woff2');
+      font-weight: 600; font-display: block;
+    }
+    @font-face {
+      font-family: 'Inter';
+      src: url('../../assets/fonts/inter/inter-latin-700-normal.woff2') format('woff2');
+      font-weight: 700; font-display: block;
+    }
+    @font-face {
+      font-family: 'JetBrains Mono';
+      src: url('../../assets/fonts/jetbrains-mono/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+      font-weight: 400; font-display: block;
+    }
+    @font-face {
+      font-family: 'JetBrains Mono';
+      src: url('../../assets/fonts/jetbrains-mono/jetbrains-mono-latin-600-normal.woff2') format('woff2');
+      font-weight: 600; font-display: block;
+    }
+
+    :root {
+      --bg: #0b1220;
+      --bg-2: #101a2c;
+      --accent: #3fd0c9;
+      --accent-2: #6c8bff;
+      --text: #eef2f8;
+      --muted: #93a1bb;
+      --border: rgba(148, 172, 214, 0.22);
+      --card: rgba(255, 255, 255, 0.04);
+    }
+
+    body { background: #05070c; font-family: 'Inter', sans-serif; }
+
+    .slide {
+      position: relative;
+      width: 1080px;
+      height: 1350px;
+      overflow: hidden;
+      background: radial-gradient(circle at 18% 8%, var(--bg-2), var(--bg) 60%);
+      page-break-after: always;
+      color: var(--text);
+    }
+    .slide:last-child { page-break-after: auto; }
+
+    /* Static dot-grid texture — no @keyframes/JS, this is a still document. */
+    .bg-dots {
+      position: absolute; inset: 0; z-index: 0;
+      background-image: radial-gradient(circle, rgba(148,172,214,0.14) 1.6px, transparent 1.6px);
+      background-size: 28px 28px;
+      opacity: 0.55;
+    }
+    .bg-glow {
+      position: absolute; z-index: 0; width: 640px; height: 640px; border-radius: 50%;
+      top: -220px; right: -220px;
+      background: radial-gradient(circle, rgba(63,208,201,0.20), transparent 70%);
+    }
+
+    .safe {
+      position: relative; z-index: 1;
+      padding: 96px 72px 140px;
+      height: 100%;
+      display: flex; flex-direction: column;
+    }
+
+    .eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px; font-weight: 600; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--accent);
+      margin: 0 0 18px;
+    }
+
+    .headline {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 72px; line-height: 1.12; letter-spacing: -0.02em;
+      margin: 0 0 24px;
+      text-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    }
+    .heading {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 48px; line-height: 1.18; letter-spacing: -0.015em;
+      margin: 0 0 28px;
+    }
+    .sub {
+      font-family: 'Inter', sans-serif; font-weight: 400; font-size: 32px; line-height: 1.45;
+      color: var(--muted); margin: 0;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px;
+    }
+
+    .page-pill {
+      position: absolute; top: 32px; right: 72px; z-index: 2;
+      font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600;
+      color: var(--muted);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 20px;
+    }
+
+    .footer {
+      position: absolute; left: 72px; bottom: 44px; z-index: 2;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .footer-avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border: 2px solid rgba(255,255,255,0.35);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+      flex: none;
+    }
+    .footer-text { font-family: 'Inter', sans-serif; }
+    .footer-name { font-size: 24px; font-weight: 700; margin: 0; }
+    .footer-handle { font-size: 20px; color: var(--muted); margin: 0; }
+
+    /* ---- slide-type specific ---- */
+    .slide-hook .safe { justify-content: center; }
+    .slide-cta .safe { justify-content: center; align-items: flex-start; }
+
+    .diagram-wrap { flex: 1; display: flex; align-items: center; justify-content: center; }
+    .diagram-wrap svg { max-width: 100%; max-height: 100%; }
+
+    .code-card { flex: 1; overflow: hidden; }
+    .code-card pre.shiki {
+      margin: 0; padding: 32px; border-radius: 16px;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 22px !important; line-height: 1.5 !important;
+      overflow: hidden;
+      /* A code line longer than the card is a static image, not a
+         terminal — there's no horizontal scroll to fall back on, so wrap
+         instead of clipping. Found by rendering a real slide and looking
+         at it (see CLAUDE.md "Verify visually"): a >70-char Python line
+         silently ran off the right edge of the card. */
+      white-space: pre-wrap !important;
+      overflow-wrap: anywhere;
+    }
+
+    .stat-value {
+      font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+      font-size: 168px; line-height: 1; letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      filter: drop-shadow(0 6px 18px rgba(63,208,201,0.25));
+      margin: 0 0 20px;
+    }
+    .stat-label { font-size: 34px; font-weight: 600; margin: 0 0 16px; }
+    .stat-context { font-size: 28px; color: var(--muted); line-height: 1.5; margin: 0; }
+
+    .list-items { list-style: none; margin: 0; padding: 0; flex: 1; }
+    .list-items li {
+      display: flex; gap: 24px; align-items: center;
+      font-size: 32px; line-height: 1.4; padding: 22px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .list-items li:last-child { border-bottom: none; }
+    .list-index {
+      font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 26px;
+      color: var(--accent); flex: none; width: 52px; text-align: center;
+    }
+
+    /* ---- icon badges (assets/icons/tabler/*.svg via scripts/icons.mjs) ---- */
+    .icon-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 92px; height: 92px; border-radius: 24px; flex: none;
+      background: linear-gradient(135deg, rgba(63,208,201,0.20), rgba(108,139,255,0.12));
+      border: 1px solid var(--border);
+      color: var(--accent);
+      box-shadow: 0 10px 28px rgba(63,208,201,0.18);
+      margin-bottom: 32px;
+    }
+    .icon-badge svg { width: 46px; height: 46px; stroke-width: 1.75; }
+    .icon-badge-sm {
+      width: 56px; height: 56px; border-radius: 16px; margin-bottom: 0;
+      box-shadow: 0 6px 16px rgba(63,208,201,0.15);
+    }
+    .icon-badge-sm svg { width: 28px; height: 28px; }
+    .list-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 52px; height: 52px; border-radius: 14px; flex: none;
+      background: rgba(63,208,201,0.12); border: 1px solid var(--border);
+      color: var(--accent);
+    }
+    .list-icon svg { width: 26px; height: 26px; stroke-width: 1.75; }
+
+    .heading-row { display: flex; align-items: center; gap: 22px; margin-bottom: 28px; }
+    .heading-row .heading { margin: 0; }
+
+    /* ---- stat comparison bars — an optional visual instead of a number
+       floating alone; see the "compare" field on a stat slide. ---- */
+    .compare-chart { margin-top: 44px; }
+    .compare-row { margin-bottom: 26px; }
+    .compare-row:last-child { margin-bottom: 0; }
+    .compare-row-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 24px;
+      color: var(--muted); margin: 0 0 10px;
+    }
+    .compare-track {
+      height: 30px; border-radius: 15px; overflow: hidden;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    }
+    .compare-fill { height: 100%; border-radius: 15px; background: rgba(147,161,187,0.4); }
+    .compare-fill.highlight {
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      box-shadow: 0 0 18px rgba(63,208,201,0.35);
+    }
+  </style>
+</head>
+<body>
+
+      <section class="slide slide-hook">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">1 / 6</div>
+        
+    <div class="safe">
+      <div class="icon-badge"><svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class="icon icon-tabler icons-tabler-outline icon-tabler-bolt"
+>
+  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+  <path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />
+</svg></div>
+      <p class="eyebrow">Inference Systems</p>
+      <h1 class="headline">Autoregressive decoding is memory-bound, not compute-bound.</h1>
+      <p class="sub">Speculative decoding fixes the math — and provably never changes a single token the model would have said.</p>
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+
+      <section class="slide slide-diagram">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">2 / 6</div>
+        
+    <div class="safe">
+      <div class="heading-row"><div class="icon-badge icon-badge-sm"><svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class="icon icon-tabler icons-tabler-outline icon-tabler-git-branch"
+>
+  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+  <path d="M5 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+  <path d="M5 6a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+  <path d="M15 6a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+  <path d="M7 8l0 8" />
+  <path d="M9 18h6a2 2 0 0 0 2 -2v-5" />
+  <path d="M14 14l3 -3l3 3" />
+</svg></div><h2 class="heading">Draft, Then Verify — In One Pass</h2></div>
+      <div class="diagram-wrap card"><svg id="mmd-d3hsrbqin0k" width="100%" xmlns="http://www.w3.org/2000/svg" class="flowchart" style="max-width: 678.453125px;" viewBox="0.5 0 678.453125 830" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#mmd-d3hsrbqin0k{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#eef2f8;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#mmd-d3hsrbqin0k .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#mmd-d3hsrbqin0k .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#mmd-d3hsrbqin0k .error-icon{fill:#101a2c;}#mmd-d3hsrbqin0k .error-text{fill:#efe5d3;stroke:#efe5d3;}#mmd-d3hsrbqin0k .edge-thickness-normal{stroke-width:1px;}#mmd-d3hsrbqin0k .edge-thickness-thick{stroke-width:3.5px;}#mmd-d3hsrbqin0k .edge-pattern-solid{stroke-dasharray:0;}#mmd-d3hsrbqin0k .edge-thickness-invisible{stroke-width:0;fill:none;}#mmd-d3hsrbqin0k .edge-pattern-dashed{stroke-dasharray:3;}#mmd-d3hsrbqin0k .edge-pattern-dotted{stroke-dasharray:2;}#mmd-d3hsrbqin0k .marker{fill:#6c8bff;stroke:#6c8bff;}#mmd-d3hsrbqin0k .marker.cross{stroke:#6c8bff;}#mmd-d3hsrbqin0k svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mmd-d3hsrbqin0k p{margin:0;}#mmd-d3hsrbqin0k .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#eef2f8;}#mmd-d3hsrbqin0k .cluster-label text{fill:#efe5d3;}#mmd-d3hsrbqin0k .cluster-label span{color:#efe5d3;}#mmd-d3hsrbqin0k .cluster-label span p{background-color:transparent;}#mmd-d3hsrbqin0k .label text,#mmd-d3hsrbqin0k span{fill:#eef2f8;color:#eef2f8;}#mmd-d3hsrbqin0k .node rect,#mmd-d3hsrbqin0k .node circle,#mmd-d3hsrbqin0k .node ellipse,#mmd-d3hsrbqin0k .node polygon,#mmd-d3hsrbqin0k .node path{fill:#132038;stroke:#3fd0c9;stroke-width:1px;}#mmd-d3hsrbqin0k .rough-node .label text,#mmd-d3hsrbqin0k .node .label text,#mmd-d3hsrbqin0k .image-shape .label,#mmd-d3hsrbqin0k .icon-shape .label{text-anchor:middle;}#mmd-d3hsrbqin0k .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mmd-d3hsrbqin0k .rough-node .label,#mmd-d3hsrbqin0k .node .label,#mmd-d3hsrbqin0k .image-shape .label,#mmd-d3hsrbqin0k .icon-shape .label{text-align:center;}#mmd-d3hsrbqin0k .node.clickable{cursor:pointer;}#mmd-d3hsrbqin0k .root .anchor path{fill:#6c8bff!important;stroke-width:0;stroke:#6c8bff;}#mmd-d3hsrbqin0k .arrowheadPath{fill:rgba(255, 255, 255, 0);}#mmd-d3hsrbqin0k .edgePaths .path{stroke:#6c8bff;stroke-width:1px;}#mmd-d3hsrbqin0k .flowchart-link{stroke:#6c8bff;fill:none;}#mmd-d3hsrbqin0k .edgeLabel{background-color:#101a2c;text-align:center;}#mmd-d3hsrbqin0k .edgeLabel p{background-color:#101a2c;}#mmd-d3hsrbqin0k .edgeLabel rect{opacity:0.5;background-color:#101a2c;fill:#101a2c;}#mmd-d3hsrbqin0k .labelBkg{background-color:rgba(16, 26, 44, 0.5);}#mmd-d3hsrbqin0k .cluster rect{fill:#101a2c;stroke:hsl(218.5714285714, 6.6666666667%, 1.7647058824%);stroke-width:1px;}#mmd-d3hsrbqin0k .cluster text{fill:#efe5d3;}#mmd-d3hsrbqin0k .cluster span{color:#efe5d3;}#mmd-d3hsrbqin0k .node .collapsed-indicator{fill:hsl(218.5714285714, 6.6666666667%, 1.7647058824%);stroke:none;opacity:0.6;}#mmd-d3hsrbqin0k .node .collapsed-separator{stroke:hsl(218.5714285714, 6.6666666667%, 1.7647058824%);stroke-width:0.75px;}#mmd-d3hsrbqin0k div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:#101a2c;border:1px solid hsl(218.5714285714, 6.6666666667%, 1.7647058824%);border-radius:2px;pointer-events:none;z-index:100;}#mmd-d3hsrbqin0k .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#eef2f8;}#mmd-d3hsrbqin0k rect.text{fill:none;stroke-width:0;}#mmd-d3hsrbqin0k .icon-shape,#mmd-d3hsrbqin0k .image-shape{background-color:#101a2c;text-align:center;}#mmd-d3hsrbqin0k .icon-shape p,#mmd-d3hsrbqin0k .image-shape p{background-color:#101a2c;padding:2px;}#mmd-d3hsrbqin0k .icon-shape .label rect,#mmd-d3hsrbqin0k .image-shape .label rect{opacity:0.5;background-color:#101a2c;fill:#101a2c;}#mmd-d3hsrbqin0k .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#mmd-d3hsrbqin0k .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#mmd-d3hsrbqin0k .node .neo-node{stroke:#3fd0c9;}#mmd-d3hsrbqin0k [data-look="neo"].node rect,#mmd-d3hsrbqin0k [data-look="neo"].cluster rect,#mmd-d3hsrbqin0k [data-look="neo"].node polygon{stroke:url(#mmd-d3hsrbqin0k-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-d3hsrbqin0k [data-look="neo"].swimlane.cluster rect{filter:none;}#mmd-d3hsrbqin0k [data-look="neo"].node path{stroke:url(#mmd-d3hsrbqin0k-gradient);stroke-width:1px;}#mmd-d3hsrbqin0k [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-d3hsrbqin0k [data-look="neo"].node .neo-line path{stroke:#3fd0c9;filter:none;}#mmd-d3hsrbqin0k [data-look="neo"].node circle{stroke:url(#mmd-d3hsrbqin0k-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-d3hsrbqin0k [data-look="neo"].node circle .state-start{fill:#000000;}#mmd-d3hsrbqin0k [data-look="neo"].icon-shape .icon{fill:url(#mmd-d3hsrbqin0k-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-d3hsrbqin0k [data-look="neo"].icon-shape .icon-neo path{stroke:url(#mmd-d3hsrbqin0k-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-d3hsrbqin0k :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="mmd-d3hsrbqin0k_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-d3hsrbqin0k_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-d3hsrbqin0k_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-d3hsrbqin0k_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id="mmd-d3hsrbqin0k_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-d3hsrbqin0k_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-d3hsrbqin0k_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-d3hsrbqin0k_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-d3hsrbqin0k_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-d3hsrbqin0k_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-d3hsrbqin0k_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"></path></marker><marker id="mmd-d3hsrbqin0k_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M283.227,54.004L260.522,59.504C237.818,65.003,192.409,76.001,169.704,85.001C147,94,147,101,147,104.5L147,108" id="mmd-d3hsrbqin0k-L_A_B_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_B_0" data-points="W3sieCI6MjgzLjIyNjU2MjUsInkiOjU0LjAwNDIyMTI1MTgxOTV9LHsieCI6MTQ3LCJ5Ijo4N30seyJ4IjoxNDcsInkiOjExMn1d" data-look="classic" marker-end="url(#mmd-d3hsrbqin0k_flowchart-v2-pointEnd)"></path><path d="M147,190L147,194.167C147,198.333,147,206.667,147,214.333C147,222,147,229,147,232.5L147,236" id="mmd-d3hsrbqin0k-L_B_C_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_C_0" data-points="W3sieCI6MTQ3LCJ5IjoxOTB9LHsieCI6MTQ3LCJ5IjoyMTV9LHsieCI6MTQ3LCJ5IjoyNDB9XQ==" data-look="classic" marker-end="url(#mmd-d3hsrbqin0k_flowchart-v2-pointEnd)"></path><path d="M147,342L147,346.167C147,350.333,147,358.667,147,366.333C147,374,147,381,147,384.5L147,388" id="mmd-d3hsrbqin0k-L_C_D_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_D_0" data-points="W3sieCI6MTQ3LCJ5IjozNDJ9LHsieCI6MTQ3LCJ5IjozNjd9LHsieCI6MTQ3LCJ5IjozOTJ9XQ==" data-look="classic" marker-end="url(#mmd-d3hsrbqin0k_flowchart-v2-pointEnd)"></path><path d="M147,670L147,676.167C147,682.333,147,694.667,155.847,708.561C164.693,722.456,182.386,737.912,191.233,745.64L200.08,753.368" id="mmd-d3hsrbqin0k-L_D_E_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_D_E_0" data-points="W3sieCI6MTQ3LCJ5Ijo2NzB9LHsieCI6MTQ3LCJ5Ijo3MDd9LHsieCI6MjAzLjA5MjEwNTI2MzE1NzksInkiOjc1Nn1d" data-look="classic" marker-end="url(#mmd-d3hsrbqin0k_flowchart-v2-pointEnd)"></path><path d="M230.685,586.315L261.115,606.429C291.545,626.543,352.405,666.772,392.623,692.712C432.841,718.651,452.417,730.303,462.204,736.128L471.992,741.954" id="mmd-d3hsrbqin0k-L_D_F_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_D_F_0" data-points="W3sieCI6MjMwLjY4NDgyNjAwMjQ3MzA3LCJ5Ijo1ODYuMzE1MTczOTk3NTI2OX0seyJ4Ijo0MTMuMjY1NjI1LCJ5Ijo3MDd9LHsieCI6NDc1LjQyOTI3NjMxNTc4OTUsInkiOjc0NH1d" data-look="classic" marker-end="url(#mmd-d3hsrbqin0k_flowchart-v2-pointEnd)"></path><path d="M279.363,756L293.083,747.833C306.804,739.667,334.246,723.333,347.967,685.833C361.688,648.333,361.688,589.667,361.688,533C361.688,476.333,361.688,421.667,361.688,381.667C361.688,341.667,361.688,316.333,361.688,291C361.688,265.667,361.688,240.333,361.688,217C361.688,193.667,361.688,172.333,361.688,151C361.688,129.667,361.688,108.333,361.688,94.167C361.688,80,361.688,73,361.688,69.5L361.688,66" id="mmd-d3hsrbqin0k-L_E_A_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_E_A_0" data-points="W3sieCI6Mjc5LjM2MjY2NDQ3MzY4NDIsInkiOjc1Nn0seyJ4IjozNjEuNjg3NSwieSI6NzA3fSx7IngiOjM2MS42ODc1LCJ5Ijo1MzF9LHsieCI6MzYxLjY4NzUsInkiOjM2N30seyJ4IjozNjEuNjg3NSwieSI6MjkxfSx7IngiOjM2MS42ODc1LCJ5IjoyMTV9LHsieCI6MzYxLjY4NzUsInkiOjE1MX0seyJ4IjozNjEuNjg3NSwieSI6ODd9LHsieCI6MzYxLjY4NzUsInkiOjYyfV0=" data-look="classic" marker-end="url(#mmd-d3hsrbqin0k_flowchart-v2-pointEnd)"></path><path d="M554.187,744L556.28,737.833C558.372,731.667,562.557,719.333,564.65,683.833C566.742,648.333,566.742,589.667,566.742,533C566.742,476.333,566.742,421.667,566.742,381.667C566.742,341.667,566.742,316.333,566.742,291C566.742,265.667,566.742,240.333,566.742,217C566.742,193.667,566.742,172.333,566.742,151C566.742,129.667,566.742,108.333,546.289,92.48C525.837,76.627,484.931,66.253,464.478,61.067L444.026,55.88" id="mmd-d3hsrbqin0k-L_F_A_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_F_A_0" data-points="W3sieCI6NTU0LjE4Njk4NjAxOTczNjksInkiOjc0NH0seyJ4Ijo1NjYuNzQyMTg3NSwieSI6NzA3fSx7IngiOjU2Ni43NDIxODc1LCJ5Ijo1MzF9LHsieCI6NTY2Ljc0MjE4NzUsInkiOjM2N30seyJ4Ijo1NjYuNzQyMTg3NSwieSI6MjkxfSx7IngiOjU2Ni43NDIxODc1LCJ5IjoyMTV9LHsieCI6NTY2Ljc0MjE4NzUsInkiOjE1MX0seyJ4Ijo1NjYuNzQyMTg3NSwieSI6ODd9LHsieCI6NDQwLjE0ODQzNzUsInkiOjU0Ljg5Njk3ODcwMjMyNzg4NX1d" data-look="classic" marker-end="url(#mmd-d3hsrbqin0k_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_B_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_B_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_C_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(147, 707)"><g class="label" data-id="L_D_E_0" transform="translate(-33.359375, -12)"><foreignObject width="66.71875" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "><p>Accepted</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(352.14995, 666.6029)"><g class="label" data-id="L_D_F_0" transform="translate(-31.578125, -12)"><foreignObject width="63.15625" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "><p>Rejected</p></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_E_A_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_F_A_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default  " id="mmd-d3hsrbqin0k-flowchart-A-0" data-look="classic" transform="translate(361.6875, 35)"><rect class="basic label-container" style="" x="-78.4609375" y="-27" width="156.921875" height="54"></rect><g class="label" style="" transform="translate(-48.4609375, -12)"><rect></rect><foreignObject width="96.921875" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Current prefix</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-d3hsrbqin0k-flowchart-B-1" data-look="classic" transform="translate(147, 151)"><rect class="basic label-container" style="" x="-130" y="-39" width="260" height="78"></rect><g class="label" style="" transform="translate(-100, -24)"><rect></rect><foreignObject width="200" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel "><p>Draft model guesses next D tokens fast</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-d3hsrbqin0k-flowchart-C-3" data-look="classic" transform="translate(147, 291)"><rect class="basic label-container" style="" x="-130" y="-51" width="260" height="102"></rect><g class="label" style="" transform="translate(-100, -36)"><rect></rect><foreignObject width="200" height="72"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel "><p>Target model scores all D+1 positions in ONE forward pass</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-d3hsrbqin0k-flowchart-D-5" data-look="classic" transform="translate(147, 531)"><polygon points="139,0 278,-139 139,-278 0,-139" class="label-container" transform="translate(-138.5, 139)"></polygon><g class="label" style="" transform="translate(-100, -24)"><rect></rect><foreignObject width="200" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel "><p>Rejection-sample each draft token</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-d3hsrbqin0k-flowchart-E-7" data-look="classic" transform="translate(234, 783)"><rect class="basic label-container" style="" x="-126.953125" y="-27" width="253.90625" height="54"></rect><g class="label" style="" transform="translate(-96.953125, -12)"><rect></rect><foreignObject width="193.90625" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Keep token, advance prefix</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-d3hsrbqin0k-flowchart-F-9" data-look="classic" transform="translate(540.953125, 783)"><rect class="basic label-container" style="" x="-130" y="-39" width="260" height="78"></rect><g class="label" style="" transform="translate(-100, -24)"><rect></rect><foreignObject width="200" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel "><p>Resample correct token from residual distribution</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="mmd-d3hsrbqin0k-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="mmd-d3hsrbqin0k-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="mmd-d3hsrbqin0k-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#3fd0c9" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(218.5714285714, 6.6666666667%, 1.7647058824%)" stop-opacity="1"></stop></linearGradient></svg></div>
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+
+      <section class="slide slide-code">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">3 / 6</div>
+        
+    <div class="safe">
+      <h2 class="heading">Why Quality Never Drops: Modified Rejection Sampling</h2>
+      <div class="code-card card"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#FF7B72">for</span><span style="color:#E6EDF3"> i, (tok, q_i) </span><span style="color:#FF7B72">in</span><span style="color:#79C0FF"> enumerate</span><span style="color:#E6EDF3">(</span><span style="color:#79C0FF">zip</span><span style="color:#E6EDF3">(draft_toks, draft_probs)):</span></span>
+<span class="line"><span style="color:#E6EDF3">    p_i </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> target_probs[i][tok]</span></span>
+<span class="line"><span style="color:#FF7B72">    if</span><span style="color:#E6EDF3"> random.random() </span><span style="color:#FF7B72">&#x3C;</span><span style="color:#79C0FF"> min</span><span style="color:#E6EDF3">(</span><span style="color:#79C0FF">1.0</span><span style="color:#E6EDF3">, p_i </span><span style="color:#FF7B72">/</span><span style="color:#E6EDF3"> q_i):</span></span>
+<span class="line"><span style="color:#E6EDF3">        accept(tok)          </span><span style="color:#8B949E"># keep it, advance</span></span>
+<span class="line"><span style="color:#FF7B72">        continue</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">    # Reject: resample from the residual, not the</span></span>
+<span class="line"><span style="color:#8B949E">    # target's argmax, so the draw stays ~ p_target.</span></span>
+<span class="line"><span style="color:#E6EDF3">    residual </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> clip(target_probs[i] </span><span style="color:#FF7B72">-</span><span style="color:#E6EDF3"> draft_probs[i], </span><span style="color:#79C0FF">0</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#E6EDF3">    residual </span><span style="color:#FF7B72">/=</span><span style="color:#E6EDF3"> residual.sum()</span></span>
+<span class="line"><span style="color:#FF7B72">    return</span><span style="color:#E6EDF3"> sample(residual), </span><span style="color:#A5D6FF">"stop"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E"># All accepted: target scored one extra position</span></span>
+<span class="line"><span style="color:#8B949E"># for free in the same pass — take it as a bonus.</span></span>
+<span class="line"><span style="color:#FF7B72">return</span><span style="color:#E6EDF3"> sample(target_probs[</span><span style="color:#FF7B72">-</span><span style="color:#79C0FF">1</span><span style="color:#E6EDF3">]), </span><span style="color:#A5D6FF">"continue"</span></span></code></pre></div>
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+
+      <section class="slide slide-stat">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">4 / 6</div>
+        
+    <div class="safe">
+      <div class="icon-badge"><svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class="icon icon-tabler icons-tabler-outline icon-tabler-gauge"
+>
+  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+  <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+  <path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+  <path d="M13.41 10.59l2.59 -2.59" />
+  <path d="M7 12a5 5 0 0 1 5 -5" />
+</svg></div>
+      <p class="stat-value">~3x</p>
+      <p class="stat-label">Faster, zero quality loss</p>
+      <p class="stat-context">Google Research's original result: a 60M-parameter T5-small draft model verified against an 11B-parameter T5-XXL target hit ~3x faster inference on translation and summarization — with outputs mathematically guaranteed identical to running the 11B model alone.</p>
+      <div class="compare-chart">
+      <div class="compare-row">
+        <p class="compare-row-label">Plain autoregressive decoding — 1x baseline</p>
+        <div class="compare-track"><div class="compare-fill" style="width:33%"></div></div>
+      </div>
+      <div class="compare-row">
+        <p class="compare-row-label">Speculative decoding — ~3x throughput</p>
+        <div class="compare-track"><div class="compare-fill highlight" style="width:100%"></div></div>
+      </div></div>
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+
+      <section class="slide slide-list">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">5 / 6</div>
+        
+    <div class="safe">
+      <h2 class="heading">Where This Breaks Without Care</h2>
+      <ul class="list-items"><li><span class="list-icon"><svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class="icon icon-tabler icons-tabler-outline icon-tabler-language"
+>
+  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+  <path d="M9 6.371c0 4.418 -2.239 6.629 -5 6.629" />
+  <path d="M4 6.371h7" />
+  <path d="M5 9c0 2.144 2.252 3.908 6 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+  <path d="M6.694 3l.793 .582" />
+</svg></span><span>Draft and target must share a tokenizer — rejection sampling operates token-by-token with no fallback for mismatched vocabularies.</span></li><li><span class="list-icon"><svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class="icon icon-tabler icons-tabler-outline icon-tabler-trending-down"
+>
+  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+  <path d="M3 7l6 6l4 -4l8 8" />
+  <path d="M21 10l0 7l-7 0" />
+</svg></span><span>A weak draft model tanks the acceptance rate: you pay for two forward passes and gain nothing over plain decoding.</span></li><li><span class="list-icon"><svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class="icon icon-tabler icons-tabler-outline icon-tabler-database"
+>
+  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+  <path d="M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" />
+  <path d="M4 6v6a8 3 0 0 0 16 0v-6" />
+  <path d="M4 12v6a8 3 0 0 0 16 0v-6" />
+</svg></span><span>A separate draft model means a second KV cache to manage — EAGLE-style self-drafting avoids this by reusing the target model's own hidden states instead of running an independent model.</span></li></ul>
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+
+      <section class="slide slide-cta">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">6 / 6</div>
+        
+    <div class="safe">
+      <div class="icon-badge"><svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class="icon icon-tabler icons-tabler-outline icon-tabler-rocket"
+>
+  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+  <path d="M4 13a8 8 0 0 1 7 7a6 6 0 0 0 3 -5a9 9 0 0 0 6 -8a3 3 0 0 0 -3 -3a9 9 0 0 0 -8 6a6 6 0 0 0 -5 3" />
+  <path d="M7 14a6 6 0 0 0 -3 6a6 6 0 0 0 6 -3" />
+  <path d="M14 9a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+</svg></div>
+      <h1 class="headline">Follow Sandesh Kale</h1>
+      <p class="sub">for more deterministic AI systems breakdowns — the math behind why your inference stack is fast or slow.</p>
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+</body>
+</html>

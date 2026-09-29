@@ -1128,12 +1128,31 @@ raster-adjacent exception, but SVG stays sharp at any zoom.
 
 ## Git / workflow conventions
 
-- `output/` is gitignored — it's fully reproducible from `content/*.json`
-  via `build.mjs` + `render.mjs`. Don't commit generated PDFs/PNGs;
-  regenerate them instead. (This differs from `video-generator`, which
-  *does* commit rendered `.mp4`s — a 60s video render is expensive enough
-  to be worth keeping as a checked-in artifact; a carousel PDF is a
-  few-second regenerate.)
+- `output/` is **committed**, per direct instruction: every post's actual
+  media (carousel `.pdf`/`slide-NN.png`, or flow-GIF `flow-scene.html`/
+  `flow.gif`) and its `caption.md` (caption + hashtags, ready to paste
+  into LinkedIn's composer) go into the repo alongside the manifest that
+  produced them — not just `content/*.json` on its own. This reverses an
+  earlier version of this rule, which treated `output/` as gitignored and
+  fully reproducible-on-demand (still true technically — `build.mjs` +
+  `render.mjs`/`gif.mjs` regenerate it bit-for-bit from the same manifest
+  and content, only the fonts/theme/timing that were live *at generation
+  time* determine the exact bytes) — the reproducibility argument doesn't
+  cover *finding* what was actually published without re-running the
+  pipeline, which committing the output does. A flow-GIF post's
+  `caption.md` isn't written by any script (`build-flow-gif.mjs` has no
+  caption/hashtags field on its manifest schema, unlike the carousel
+  path's `caption`/`hashtags` manifest fields that `build.mjs` writes out
+  automatically) — write it by hand, same discipline as writing `alt`
+  text by hand, and match its content to what the diagram's nodes/chips
+  actually say. Every real post's `output/<slug>/` needs, at minimum, its
+  rendered media plus a `caption.md` ending in a space-joined `#tags`
+  line — commit both together, not media without the caption or vice
+  versa. (This differs from the *previous* documented reasoning that drew
+  a media-cost distinction with `video-generator`'s committed `.mp4`s —
+  that distinction no longer applies now that this repo's own output is
+  committed too, for the same "the record of what was published lives in
+  the repo" reason, not a render-cost one.)
 - Verify visually, don't just trust the generated markup: read a couple
   of the rendered `slide-NN.png` files back (or open the PDF) after every
   template/build change and actually look — text clipping, low-contrast
