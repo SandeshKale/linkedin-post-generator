@@ -29,6 +29,7 @@ import { renderMermaid, closeMermaidBrowser } from './mermaid.mjs';
 import { renderD2 } from './d2.mjs';
 import { highlight } from './shiki.mjs';
 import { parseManifest } from './manifest-schema.mjs';
+import { checkVariety } from './variety-check.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -68,6 +69,11 @@ async function main() {
 
   if (!raw.slug) raw.slug = basename(manifestPath, extname(manifestPath));
   const manifest = parseManifest(raw);
+  // Hard guardrail, not advisory: fails the build if this post's theme is
+  // identical to the immediately preceding one. See scripts/variety-check.mjs
+  // and CLAUDE.md "Visual identity" for why this exists as a pipeline check
+  // instead of a rule to remember.
+  checkVariety(manifest, manifest.slug);
 
   console.log(`Building "${manifest.title}" (${manifest.slides.length} slides)...`);
   const carouselTheme = resolveCarouselTheme(manifest.theme);
