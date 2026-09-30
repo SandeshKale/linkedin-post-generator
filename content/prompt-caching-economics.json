@@ -1,0 +1,81 @@
+{
+  "slug": "prompt-caching-economics",
+  "title": "You're Paying Full Price For The Same Prompt Prefix, Every Call",
+  "author": "Sandesh Kale",
+  "handle": "GenAI Solutions Architect",
+  "slides": [
+    {
+      "type": "hook",
+      "icon": "coin",
+      "eyebrow": "LLM Cost Engineering",
+      "headline": "You're paying full price for the same prompt, every single call.",
+      "sub": "Prompt caching cuts input cost up to 90% and latency up to 85% — most teams never actually get a hit.",
+      "alt": "Dark slide with a coin icon badge and eyebrow label 'LLM Cost Engineering'. Large headline: You're paying full price for the same prompt, every single call. Subheading: Prompt caching cuts input cost up to 90% and latency up to 85% — most teams never actually get a hit."
+    },
+    {
+      "type": "diagram",
+      "icon": "hash",
+      "heading": "What Actually Happens On Each Call",
+      "mermaid": "flowchart TD\n  A[Request arrives] --> B{Prefix byte-identical\\nto a cached one?}\n  B -- Yes, within TTL --> C[Cache hit:\\nserve prefix from cache]\n  C --> D[~10% of input cost,\\nup to 85% less latency]\n  B -- No, or expired --> E[Cache miss:\\nfull prefill computed]\n  E --> F[Full input cost\\n+ 25% to write new cache]",
+      "alt": "Mermaid flowchart, top to bottom: Request arrives, into a decision diamond 'Prefix byte-identical to a cached one?'. The Yes-within-TTL branch goes to 'Cache hit: serve prefix from cache' then down to '~10% of input cost, up to 85% less latency'. The No-or-expired branch goes to 'Cache miss: full prefill computed' then down to 'Full input cost + 25% to write new cache'. One decision point, two outcome chains."
+    },
+    {
+      "type": "list",
+      "heading": "Why Teams Never Actually Get A Hit",
+      "items": [
+        { "icon": "refresh", "text": "A timestamp, request ID, or user name gets interpolated into the SYSTEM prompt — the prefix is now different on every single call, guaranteed miss." },
+        { "icon": "scale", "text": "Dynamic content (the user's actual question) sits before the static content (docs, tool defs) instead of after it — nothing after the first byte-diff point can be cached." },
+        { "icon": "clock", "text": "The cache TTL (5 minutes by default) quietly expires between calls in a low-traffic path, so every request looks like the first one." },
+        { "icon": "alert-triangle", "text": "Nobody's actually checking cache_read vs cache_creation token counts — the cache can be missing 100% of the time and the bill looks \"normal.\"" }
+      ],
+      "alt": "List slide, heading 'Why Teams Never Actually Get A Hit', four rows each with a small icon badge (refresh arrows, a balance scale, a clock, a warning triangle) beside 1-2 lines of body text describing a specific reason prompt caching silently fails to trigger."
+    },
+    {
+      "type": "stat",
+      "icon": "bolt",
+      "value": "85%",
+      "label": "Lower latency on a cache hit",
+      "context": "Same model, same prompt, same output length — the only difference is whether the long static prefix (system prompt, tool definitions, reference docs) was served from cache or recomputed from scratch.",
+      "compare": [
+        { "label": "Cache miss — full prefill", "value": 92 },
+        { "label": "Cache hit — served from cache", "value": 15, "highlight": true }
+      ],
+      "alt": "Stat slide with a lightning-bolt icon badge and a large gradient '85%' figure, label 'Lower latency on a cache hit', a supporting sentence about the prefix being served from cache versus recomputed, and a two-row horizontal bar chart: a long bar for 'Cache miss' and a short, highlighted bar for 'Cache hit'."
+    },
+    {
+      "type": "list",
+      "heading": "How To Actually Get The Hit",
+      "items": [
+        "Order the prompt static-first: system prompt, tool definitions, reference docs, THEN the user's actual (dynamic) question last.",
+        "Keep the static prefix byte-identical across calls — no timestamps, no request IDs, no reordered JSON keys anywhere before the dynamic part.",
+        "Batch requests to land inside the TTL window instead of spacing them out past it, especially on a low-traffic endpoint.",
+        "Actually log cache_read_input_tokens vs cache_creation_input_tokens per call — a cache that silently never hits looks identical to a working one on every other metric."
+      ],
+      "alt": "List slide, heading 'How To Actually Get The Hit', four auto-numbered rows (badges 1 through 4) each with 1-2 lines of body text: order static content first, keep the prefix byte-identical, batch inside the TTL window, and actually log cache read vs creation tokens."
+    },
+    {
+      "type": "cta",
+      "icon": "rocket",
+      "headline": "Reorder your prompt before you reach for a smaller model.",
+      "sub": "A cache hit is a bigger lever than most model-downsizing decisions. Follow for the next cost-engineering breakdown.",
+      "alt": "Closing slide with a rocket icon badge, headline 'Reorder your prompt before you reach for a smaller model.', and subheading 'A cache hit is a bigger lever than most model-downsizing decisions. Follow for the next cost-engineering breakdown.'"
+    }
+  ],
+  "caption": "You're not overpaying for LLM calls because the model is expensive. You're overpaying because the same 4,000-token system prompt gets recomputed from scratch on every single request.\n\nPrompt caching lets a model reuse a previously-processed prefix instead of recomputing it — up to 90% cheaper on the cached portion, up to 85% faster. Most teams turn it on, watch the bill barely move, and conclude it \"doesn't really help.\" It's not that caching doesn't work. It's that they never actually get a hit.\n\n💾 Save this if you're running any prompt over a few hundred tokens in production.\n\n🔑 The mechanism\nA cache hit requires the prefix to be byte-identical to something already cached, within the TTL window (5 minutes by default). Match, and you pay ~10% of normal input cost for that portion with dramatically lower latency. Miss, and you pay full price plus a ~25% premium to write the new cache entry.\n\n📊 The number\nSame model, same prompt, same output — the only variable was cache hit vs miss. Latency dropped 85% on the hit. The cost curve moves even harder: a cache hit is roughly a 90% discount on the cached input tokens.\n\n⚠️ Why teams miss it anyway\n→ A timestamp or request ID gets interpolated into the system prompt — the prefix is different every call, guaranteed miss.\n→ The dynamic user question sits BEFORE the static content instead of after it — nothing past the first byte difference can cache.\n→ Nobody's actually checking cache_read vs cache_creation tokens, so a 0%-hit-rate cache looks identical to a working one on the invoice.\n\n✅ Fix it: static content first (system prompt, tool defs, docs), dynamic content last, byte-identical prefix every call, and actually log your hit rate instead of assuming it's working.\n\n🌍 Is your production system actually hitting cache, or have you just assumed it is? Genuinely curious how many people have checked the real numbers.",
+  "hashtags": [
+    "LLMOps",
+    "PromptEngineering",
+    "GenAI",
+    "AIEngineering",
+    "CostOptimization",
+    "MachineLearning",
+    "LLM",
+    "SoftwareArchitecture",
+    "AIatScale",
+    "MLOps",
+    "ClaudeAPI",
+    "GenerativeAI",
+    "AIInfrastructure",
+    "TechArchitecture"
+  ]
+}
