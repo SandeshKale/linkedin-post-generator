@@ -105,12 +105,33 @@ const ctaSlide = baseSlide.extend({
   sub: z.string().optional(),
 });
 
+// A genuinely different composition, not a themed variant of `list` — two
+// labeled columns split by a divider and a center badge, for content that
+// is actually two-sided (e.g. a head-to-head comparison post). Added after
+// direct feedback that a new color scheme on the same single-column
+// skeleton every slide type uses still isn't a unique asset; see CLAUDE.md
+// "Visual identity" for the incident. Use this only when the content is
+// genuinely two-sided — forcing a split where there's nothing to split is
+// the same "creative for its own sake" mistake in the other direction.
+const versusSide = z.object({
+  label: z.string().min(1),
+  icon: iconName.optional(),
+  items: z.array(z.string().min(1)).min(1),
+});
+const versusSlide = baseSlide.extend({
+  type: z.literal('versus'),
+  heading: z.string().optional(),
+  left: versusSide,
+  right: versusSide,
+});
+
 const slideSchema = z.discriminatedUnion('type', [
   hookSlide,
   diagramSlide,
   codeSlide,
   statSlide,
   listSlide,
+  versusSlide,
   ctaSlide,
 ]);
 

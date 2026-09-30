@@ -4,8 +4,8 @@ Dark slide with a robot icon badge and eyebrow label 'Agent Architecture'. Large
 Slide 2 (diagram):
 Mermaid flowchart, top to bottom: 'Always-on AI agent' splits into two branches. Left branch: 'xAI: Grok Bot, launched Aug 11, 2026' leading to 'Own cloud computer + direct agent-to-agent coordination'. Right branch: 'OpenAI: Dots, launched Sep 29, 2026' leading to 'Own cloud computer + 4,000-app connector network'. A simple two-branch comparison tree.
 
-Slide 3 (list):
-List slide, heading 'Where They Actually Differ', four rows each with a small icon badge (people, terminal, puzzle piece, message bubble) beside 1-2 lines of body text comparing Grok Bot's and Dots' actual architecture and distribution differences.
+Slide 3 (versus):
+Split two-column comparison slide, heading 'Where They Actually Differ', divided by a vertical line with a 'VS' badge at the center. Left column, labeled 'xAI: Grok Bot' in green with a terminal icon: multi-agent coordination as a first-class feature with direct bot-to-bot messaging, and built to operate tools with no clean API or MCP support. Right column, labeled 'OpenAI: Dots' in amber with a puzzle-piece icon: leans on OpenAI's existing 4,000+ app plugin ecosystem, and reachable from more surfaces (ChatGPT, Slack, Microsoft Teams) at launch.
 
 Slide 4 (stat):
 Stat slide with a clock icon badge and a large value '49 Days', label 'Between the two launches', and a supporting sentence noting the August 11 Grok Bot launch and the September 29 Dots launch.

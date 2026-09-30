@@ -512,6 +512,51 @@ function baseStyles(T) {
       background: ${isGlass ? 'linear-gradient(90deg, var(--accent), var(--accent-2))' : 'var(--accent)'};
       box-shadow: ${isGlass ? '0 0 18px rgba(63,208,201,0.35)' : 'none'};
     }
+
+    /* ---- "versus" slide: a real two-column split, not a themed list ----
+       Structurally different from every other slide type in this file —
+       divided content instead of one centered column — for content that
+       is genuinely two-sided (see manifest-schema.mjs's comment on why
+       this exists as its own slide type rather than a list variant). */
+    .versus-wrap { flex: 1; position: relative; display: flex; align-items: stretch; gap: 56px; }
+    .versus-col { flex: 1; display: flex; flex-direction: column; padding-top: 12px; }
+    .versus-col-left { align-items: flex-end; text-align: right; }
+    .versus-col-right { align-items: flex-start; text-align: left; }
+    .versus-col-icon { margin-bottom: 20px; }
+    .versus-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 24px;
+    }
+    .versus-col-left .versus-label { color: var(--accent); }
+    .versus-col-right .versus-label { color: var(--accent-2); }
+    .versus-items { list-style: none; margin: 0; padding: 0; }
+    .versus-items li { font-size: 25px; line-height: 1.5; margin-bottom: 24px; color: var(--text); }
+    .versus-divider {
+      position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+      background: var(--border); transform: translateX(-50%);
+    }
+    /* Vertically centered on the icon row specifically, not on the full
+       flex:1 height or a guessed pixel offset — two earlier attempts both
+       clipped real text (first the item copy, by centering on the whole
+       remaining slide height; then the icon badges and labels, from a
+       fixed 80px offset that was eyeballed instead of computed). This
+       value IS computed, from the actual CSS around it: .versus-col's own
+       padding-top (12px) + half of .icon-badge-sm's height (56px / 2 =
+       28px) = 40px, the icon row's true vertical center — not a number
+       that happens to look right in one render. Both icon badges sit at
+       their column's divider-side edge (align-items: flex-end / flex-
+       start below), so this badge only ever shares their row, never the
+       label or item text further down. Any change to icon-badge-sm's
+       size or .versus-col's padding must update this value too. */
+    .versus-badge {
+      position: absolute; left: 50%; top: 40px; transform: translate(-50%, -50%);
+      width: 60px; height: 60px; border-radius: ${isGlass ? '50%' : '0px'}; z-index: 2;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 17px;
+      color: var(--accent); background: var(--bg);
+      border: 2px solid var(--accent);
+      box-shadow: ${isGlass ? '0 0 22px rgba(63,208,201,0.25)' : 'none'};
+    }
   `;
 }
 
@@ -607,6 +652,29 @@ function renderList(slide) {
     </div>`;
 }
 
+function renderVersusCol(side, data) {
+  const items = data.items.map((t) => `<li>${esc(t)}</li>`).join('');
+  return `
+    <div class="versus-col versus-col-${side}">
+      ${data.icon ? `<div class="icon-badge icon-badge-sm versus-col-icon">${icon(data.icon)}</div>` : ''}
+      <p class="versus-label">${esc(data.label)}</p>
+      <ul class="versus-items">${items}</ul>
+    </div>`;
+}
+
+function renderVersus(slide) {
+  return `
+    <div class="safe">
+      ${slide.heading ? `<h2 class="heading">${esc(slide.heading)}</h2>` : ''}
+      <div class="versus-wrap">
+        ${renderVersusCol('left', slide.left)}
+        <div class="versus-divider"></div>
+        <div class="versus-badge">VS</div>
+        ${renderVersusCol('right', slide.right)}
+      </div>
+    </div>`;
+}
+
 function renderCta(slide) {
   return `
     <div class="safe">
@@ -622,6 +690,7 @@ const RENDERERS = {
   code: renderCode,
   stat: renderStat,
   list: renderList,
+  versus: renderVersus,
   cta: renderCta,
 };
 

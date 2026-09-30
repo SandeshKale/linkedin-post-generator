@@ -1037,6 +1037,54 @@ syntax highlighting" than a mismatch, but this is exactly the kind of
 call that has to be checked by rendering and looking, not assumed either
 way from the CSS.
 
+**Still not enough — direct follow-up feedback on the `terminal` theme
+itself: "still bullshit. just changing color scheme you cannot call it a
+unique style of asset... media assets need to be unique to grab viewers'
+attention."** Correct, and it applies one level deeper than theme: every
+carousel slide type (`hook`, `list`, `stat`, `cta`...) uses the exact same
+single-column composition — icon, then heading, then body, centered —
+regardless of theme. A different card border and a different font on that
+same skeleton is still the same skeleton. This is the identical "palette
+on the same skeleton is not enough" problem this file's own opening
+section already names for layout, and the identical fix flow-GIF already
+made with `layout: 'zigzag'` — a real compositional alternative, not a
+reskin — just never carried over to the carousel side until now.
+
+Fix: **`versus`, a new slide type** (`manifest-schema.mjs`'s `versusSlide`,
+`templates/carousel.mjs`'s `renderVersus()`/`.versus-*` CSS), not a new
+theme. Two labeled columns split by a vertical divider and a center badge
+— genuinely different geometry (split content vs. one centered column),
+used only where the content is actually two-sided (a head-to-head
+comparison post, e.g. `grok-bot-vs-openai-dots.json`'s "Where They
+Actually Differ" slide, converted from a `list` once it was clear every
+item already split cleanly along vendor lines). **Don't reach for `versus`
+on content that isn't genuinely two-sided** — forcing a split where
+there's nothing to split is the same "creative for its own sake" mistake
+in the other direction, and the schema comment says so explicitly.
+
+**Gotcha: the VS badge, positioned at the vertical center of the column's
+full `flex: 1` height, silently clipped real body text.** `flex: 1` makes
+`.versus-wrap` fill all the remaining slide height regardless of how much
+actual text is in either column, so `top: 50%` landed wherever that
+midpoint fell relative to the (much shorter) rendered content — here,
+mid-word in the left column's second paragraph, invisibly, because the
+badge's opaque background just painted over the text rather than erroring.
+Caught only by rendering and looking, the same as every other layout
+gotcha in this file. **First fix attempt was also wrong**: a guessed fixed
+`top: 80px` offset moved the collision instead of removing it — it landed
+on the icon badges and labels instead of the item text. The working fix
+computes the offset from the actual CSS around it instead of eyeballing a
+number: `.versus-col`'s own `padding-top` (12px) + half of
+`.icon-badge-sm`'s height (56px / 2 = 28px) = 40px, the icon row's true
+vertical center, which is also where both icons already sit (each
+column's icon aligns to its own divider-side edge via
+`align-items: flex-end`/`flex-start`) — so the badge only ever shares
+their row, never the label or item text further down. **General lesson,
+third time this exact class of bug has hit this file: a number that
+"looks about right" and a number that's actually computed from the
+surrounding layout are not the same fix, and only one of them survives
+the next post's different text length.**
+
 **Adding a fourth carousel theme**: add an entry to `CAROUSEL_THEMES`
 (`colors` + `sceneBg` + `displayFont` + `cardStyle` + `iconStyle` +
 `bgTexture` + `gridLineColor?` + `statValueStyle` + `mermaidVariables`) in

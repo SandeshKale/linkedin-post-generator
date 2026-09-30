@@ -332,6 +332,51 @@
       background: var(--accent);
       box-shadow: none;
     }
+
+    /* ---- "versus" slide: a real two-column split, not a themed list ----
+       Structurally different from every other slide type in this file —
+       divided content instead of one centered column — for content that
+       is genuinely two-sided (see manifest-schema.mjs's comment on why
+       this exists as its own slide type rather than a list variant). */
+    .versus-wrap { flex: 1; position: relative; display: flex; align-items: stretch; gap: 56px; }
+    .versus-col { flex: 1; display: flex; flex-direction: column; padding-top: 12px; }
+    .versus-col-left { align-items: flex-end; text-align: right; }
+    .versus-col-right { align-items: flex-start; text-align: left; }
+    .versus-col-icon { margin-bottom: 20px; }
+    .versus-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 24px;
+    }
+    .versus-col-left .versus-label { color: var(--accent); }
+    .versus-col-right .versus-label { color: var(--accent-2); }
+    .versus-items { list-style: none; margin: 0; padding: 0; }
+    .versus-items li { font-size: 25px; line-height: 1.5; margin-bottom: 24px; color: var(--text); }
+    .versus-divider {
+      position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+      background: var(--border); transform: translateX(-50%);
+    }
+    /* Vertically centered on the icon row specifically, not on the full
+       flex:1 height or a guessed pixel offset — two earlier attempts both
+       clipped real text (first the item copy, by centering on the whole
+       remaining slide height; then the icon badges and labels, from a
+       fixed 80px offset that was eyeballed instead of computed). This
+       value IS computed, from the actual CSS around it: .versus-col's own
+       padding-top (12px) + half of .icon-badge-sm's height (56px / 2 =
+       28px) = 40px, the icon row's true vertical center — not a number
+       that happens to look right in one render. Both icon badges sit at
+       their column's divider-side edge (align-items: flex-end / flex-
+       start below), so this badge only ever shares their row, never the
+       label or item text further down. Any change to icon-badge-sm's
+       size or .versus-col's padding must update this value too. */
+    .versus-badge {
+      position: absolute; left: 50%; top: 40px; transform: translate(-50%, -50%);
+      width: 60px; height: 60px; border-radius: 0px; z-index: 2;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 17px;
+      color: var(--accent); background: var(--bg);
+      border: 2px solid var(--accent);
+      box-shadow: none;
+    }
   </style>
 </head>
 <body>
@@ -1286,36 +1331,17 @@ direct agent-to-agent coordination</p>
     </div>
       </section>
 
-      <section class="slide slide-list">
+      <section class="slide slide-versus">
         <div class="bg-dots"></div>
         <div class="bg-glow"></div>
         <div class="page-pill">3 / 6</div>
         
     <div class="safe">
       <h2 class="heading">Where They Actually Differ</h2>
-      <ul class="list-items"><li><span class="list-icon"><!--
-tags: [people, persons, accounts, users, control, operation, function, interface, management]
-category: System
-version: "1.7"
-unicode: "ebf2"
--->
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  width="24"
-  height="24"
-  viewBox="0 0 24 24"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="2"
-  stroke-linecap="round"
-  stroke-linejoin="round"
->
-  <path d="M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
-  <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  <path d="M21 21v-2a4 4 0 0 0 -3 -3.85" />
-</svg>
-</span><span>Grok Bot treats multi-agent coordination as a first-class feature — bots message each other directly, pass work, and assign ownership inside shared group chats.</span></li><li><span class="list-icon"><!--
+      <div class="versus-wrap">
+        
+    <div class="versus-col versus-col-left">
+      <div class="icon-badge icon-badge-sm versus-col-icon"><!--
 tags: [console, command, git, command line, command prompt, terminal, programming, software, coding, technical]
 category: Development
 version: "1.7"
@@ -1336,7 +1362,15 @@ unicode: "ebef"
   <path d="M13 15l3 0" />
   <path d="M3 6a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2l0 -12" />
 </svg>
-</span><span>Grok Bot is built to operate tools that have no clean API or MCP support — closer to general computer-use automation than a curated integration list.</span></li><li><span class="list-icon"><!--
+</div>
+      <p class="versus-label">xAI: Grok Bot</p>
+      <ul class="versus-items"><li>Multi-agent coordination is a first-class feature — bots message each other directly, pass work, and assign ownership inside shared group chats.</li><li>Built to operate tools with no clean API or MCP support — closer to general computer-use automation than a curated integration list.</li></ul>
+    </div>
+        <div class="versus-divider"></div>
+        <div class="versus-badge">VS</div>
+        
+    <div class="versus-col versus-col-right">
+      <div class="icon-badge icon-badge-sm versus-col-icon"><!--
 tags: [jigsaw, extension, add-on, puzzle, entertainment, playing, recreation, fun, activity, 2]
 category: Games
 version: "1.46"
@@ -1359,26 +1393,11 @@ unicode: "ef83"
   <path d="M20 12h-2.5a.5 .5 0 0 1 -.5 -.5a1.5 1.5 0 0 0 -3 0a.5 .5 0 0 1 -.5 .5h-1.5" />
   <path d="M12 12h-1.5a.5 .5 0 0 0 -.5 .5a1.5 1.5 0 0 1 -3 0a.5 .5 0 0 0 -.5 -.5h-2.5" />
 </svg>
-</span><span>Dots leans on OpenAI's existing plugin ecosystem — 4,000+ pre-built app connectors instead of raw computer-use — tighter integrations, narrower reach.</span></li><li><span class="list-icon"><!--
-tags: [comment, chat, reply, message, circle, contact, conversation, round, circular, messaging]
-category: Communication
-version: "1.0"
-unicode: "eaed"
--->
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  width="24"
-  height="24"
-  viewBox="0 0 24 24"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="2"
-  stroke-linecap="round"
-  stroke-linejoin="round"
->
-  <path d="M3 20l1.3 -3.9c-2.324 -3.437 -1.426 -7.872 2.1 -10.374c3.526 -2.501 8.59 -2.296 11.845 .48c3.255 2.777 3.695 7.266 1.029 10.501c-2.666 3.235 -7.615 4.215 -11.574 2.293l-4.7 1" />
-</svg>
-</span><span>Dots is reachable from more surfaces at launch — ChatGPT, Slack, Microsoft Teams, with phone audio coming soon — a distribution edge, not an architecture one.</span></li></ul>
+</div>
+      <p class="versus-label">OpenAI: Dots</p>
+      <ul class="versus-items"><li>Leans on OpenAI's existing plugin ecosystem — 4,000+ pre-built app connectors instead of raw computer-use.</li><li>Reachable from more surfaces at launch — ChatGPT, Slack, Microsoft Teams, with phone audio coming soon.</li></ul>
+    </div>
+      </div>
     </div>
         
     <div class="footer">

@@ -22,15 +22,25 @@
       "alt": "Mermaid flowchart, top to bottom: 'Always-on AI agent' splits into two branches. Left branch: 'xAI: Grok Bot, launched Aug 11, 2026' leading to 'Own cloud computer + direct agent-to-agent coordination'. Right branch: 'OpenAI: Dots, launched Sep 29, 2026' leading to 'Own cloud computer + 4,000-app connector network'. A simple two-branch comparison tree."
     },
     {
-      "type": "list",
+      "type": "versus",
       "heading": "Where They Actually Differ",
-      "items": [
-        { "icon": "users", "text": "Grok Bot treats multi-agent coordination as a first-class feature — bots message each other directly, pass work, and assign ownership inside shared group chats." },
-        { "icon": "terminal-2", "text": "Grok Bot is built to operate tools that have no clean API or MCP support — closer to general computer-use automation than a curated integration list." },
-        { "icon": "puzzle-2", "text": "Dots leans on OpenAI's existing plugin ecosystem — 4,000+ pre-built app connectors instead of raw computer-use — tighter integrations, narrower reach." },
-        { "icon": "message-circle", "text": "Dots is reachable from more surfaces at launch — ChatGPT, Slack, Microsoft Teams, with phone audio coming soon — a distribution edge, not an architecture one." }
-      ],
-      "alt": "List slide, heading 'Where They Actually Differ', four rows each with a small icon badge (people, terminal, puzzle piece, message bubble) beside 1-2 lines of body text comparing Grok Bot's and Dots' actual architecture and distribution differences."
+      "left": {
+        "label": "xAI: Grok Bot",
+        "icon": "terminal-2",
+        "items": [
+          "Multi-agent coordination is a first-class feature — bots message each other directly, pass work, and assign ownership inside shared group chats.",
+          "Built to operate tools with no clean API or MCP support — closer to general computer-use automation than a curated integration list."
+        ]
+      },
+      "right": {
+        "label": "OpenAI: Dots",
+        "icon": "puzzle-2",
+        "items": [
+          "Leans on OpenAI's existing plugin ecosystem — 4,000+ pre-built app connectors instead of raw computer-use.",
+          "Reachable from more surfaces at launch — ChatGPT, Slack, Microsoft Teams, with phone audio coming soon."
+        ]
+      },
+      "alt": "Split two-column comparison slide, heading 'Where They Actually Differ', divided by a vertical line with a 'VS' badge at the center. Left column, labeled 'xAI: Grok Bot' in green with a terminal icon: multi-agent coordination as a first-class feature with direct bot-to-bot messaging, and built to operate tools with no clean API or MCP support. Right column, labeled 'OpenAI: Dots' in amber with a puzzle-piece icon: leans on OpenAI's existing 4,000+ app plugin ecosystem, and reachable from more surfaces (ChatGPT, Slack, Microsoft Teams) at launch."
     },
     {
       "type": "stat",
