@@ -20,6 +20,16 @@
       font-weight: 500; font-display: block;
     }
     @font-face {
+      font-family: 'Poppins';
+      src: url('../../assets/fonts/poppins/poppins-latin-800-normal.woff2') format('woff2');
+      font-weight: 800; font-display: block;
+    }
+    @font-face {
+      font-family: 'Poppins';
+      src: url('../../assets/fonts/poppins/poppins-latin-900-normal.woff2') format('woff2');
+      font-weight: 900; font-display: block;
+    }
+    @font-face {
       font-family: 'Inter';
       src: url('../../assets/fonts/inter/inter-latin-400-normal.woff2') format('woff2');
       font-weight: 400; font-display: block;
@@ -46,40 +56,57 @@
     }
 
     :root {
-      --bg: #0b1220;
-      --bg-2: #101a2c;
-      --accent: #3fd0c9;
-      --accent-2: #6c8bff;
-      --text: #eef2f8;
-      --muted: #93a1bb;
-      --border: rgba(148, 172, 214, 0.22);
-      --card: rgba(255, 255, 255, 0.04);
+      --bg: #faf3e6;
+      --bg-2: #f2e6d0;
+      --accent: #d94f2b;
+      --accent-2: #0d6e5c;
+      --text: #241c14;
+      --muted: #6b5c48;
+      --border: #241c14;
+      --card: #fffbf2;
     }
 
-    body { background: #05070c; font-family: 'Inter', sans-serif; }
+    body { background: #f2e6d0; font-family: 'Inter', sans-serif; }
 
     .slide {
       position: relative;
       width: 1080px;
       height: 1350px;
       overflow: hidden;
-      background: radial-gradient(circle at 18% 8%, var(--bg-2), var(--bg) 60%);
+      background: var(--bg);
       page-break-after: always;
       color: var(--text);
     }
     .slide:last-child { page-break-after: auto; }
 
-    /* Static dot-grid texture — no @keyframes/JS, this is a still document. */
+    /* Background texture: Blueprint's dot-grid + top-right glow (a "dark
+       tech UI" read) vs. Daylight's flat ruled-grid (a "graph paper" read)
+       — genuinely different texture language, not a recolored dot.
+
+       Gotcha: the grid line reused --border (Daylight's bold, near-opaque
+       ink color, the same one the card outlines use) and at 0.35 opacity
+       it was strong enough that wherever a line happened to fall inside
+       a letter's own counter/gap (a headline word wraps to an
+       unpredictable position depending on its text, so this isn't
+       something a fixed grid offset can dodge), it read as a stray mark
+       cutting through the glyph — caught only by rendering a real
+       headline and looking, not by reading the CSS, since the bug only
+       shows up wherever a line and a letter gap happen to coincide.
+       Fixed with a dedicated, much softer gridLineColor separate from
+       the bold --border card-outline color, the same "a shared color
+       needs checking against every surface it touches" lesson this file
+       already documents for the flow-GIF dossier theme's connector. */
     .bg-dots {
       position: absolute; inset: 0; z-index: 0;
-      background-image: radial-gradient(circle, rgba(148,172,214,0.14) 1.6px, transparent 1.6px);
-      background-size: 28px 28px;
-      opacity: 0.55;
+      background-image:
+          repeating-linear-gradient(0deg, rgba(36, 28, 20, 0.12) 0px, rgba(36, 28, 20, 0.12) 1px, transparent 1px, transparent 64px),
+          repeating-linear-gradient(90deg, rgba(36, 28, 20, 0.12) 0px, rgba(36, 28, 20, 0.12) 1px, transparent 1px, transparent 64px);
+        opacity: 1;
     }
     .bg-glow {
       position: absolute; z-index: 0; width: 640px; height: 640px; border-radius: 50%;
       top: -220px; right: -220px;
-      background: radial-gradient(circle, rgba(63,208,201,0.20), transparent 70%);
+      background: transparent;
     }
 
     .safe {
@@ -97,14 +124,14 @@
     }
 
     .headline {
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700; font-size: 72px; line-height: 1.12; letter-spacing: -0.02em;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800; font-size: 72px; line-height: 1.12; letter-spacing: -0.02em;
       margin: 0 0 24px;
-      text-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      text-shadow: none;
     }
     .heading {
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700; font-size: 48px; line-height: 1.18; letter-spacing: -0.015em;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800; font-size: 48px; line-height: 1.18; letter-spacing: -0.015em;
       margin: 0 0 28px;
     }
     .sub {
@@ -112,20 +139,26 @@
       color: var(--muted); margin: 0;
     }
 
+    /* Card shape: Blueprint's translucent glass card (soft border-radius,
+       barely-there fill) vs. Daylight's opaque solid card (hard corners,
+       a bold 3px ink border) — a real silhouette/material difference, the
+       same "don't just recolor the same rectangle" discipline
+       templates/flow-gif.mjs's own nodeShape gotcha already documents. */
     .card {
       background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 20px;
+      border: 3px solid var(--border);
+      border-radius: 0px;
       padding: 36px;
+      box-shadow: 10px 10px 0 0 var(--border);
     }
 
     .page-pill {
       position: absolute; top: 32px; right: 72px; z-index: 2;
       font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600;
-      color: var(--muted);
-      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 999px;
+      border-radius: 0px;
       padding: 8px 20px;
     }
 
@@ -134,10 +167,10 @@
       display: flex; align-items: center; gap: 16px;
     }
     .footer-avatar {
-      width: 56px; height: 56px; border-radius: 50%;
+      width: 56px; height: 56px; border-radius: 0px;
       background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      border: 2px solid rgba(255,255,255,0.35);
-      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+      border: 2px solid var(--border);
+      box-shadow: none;
       flex: none;
     }
     .footer-text { font-family: 'Inter', sans-serif; }
@@ -166,7 +199,7 @@
 
     .code-card { flex: 1; overflow: hidden; }
     .code-card pre.shiki {
-      margin: 0; padding: 32px; border-radius: 16px;
+      margin: 0; padding: 32px; border-radius: 0px;
       font-family: 'JetBrains Mono', monospace !important;
       font-size: 22px !important; line-height: 1.5 !important;
       overflow: hidden;
@@ -179,13 +212,20 @@
       overflow-wrap: anywhere;
     }
 
+    /* Stat value: Blueprint's gradient-clip text (a glowing "hero number"
+       read) vs. Daylight's flat solid ink with a bold accent underline
+       bar (a "stamped headline" read) — see the gradient-text gotcha
+       documented elsewhere in this repo (text-shadow must be explicitly
+       'none' on a background-clip:text span, or an inherited shadow
+       renders as a solid dark silhouette instead of the gradient); this
+       branch sidesteps that entirely for the underline variant since it
+       never uses background-clip in the first place. */
     .stat-value {
-      font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+      font-family: 'Poppins', sans-serif; font-weight: 800;
       font-size: 168px; line-height: 1; letter-spacing: -0.03em;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      -webkit-background-clip: text; background-clip: text; color: transparent;
-      filter: drop-shadow(0 6px 18px rgba(63,208,201,0.25));
       margin: 0 0 20px;
+      color: var(--text); text-shadow: none;
+        border-bottom: 10px solid var(--accent); display: inline-block; padding-bottom: 8px;
     }
     .stat-label { font-size: 34px; font-weight: 600; margin: 0 0 16px; }
     .stat-context { font-size: 28px; color: var(--muted); line-height: 1.5; margin: 0; }
@@ -199,30 +239,41 @@
     .list-items li:last-child { border-bottom: none; }
     .list-index {
       font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 26px;
-      color: var(--accent); flex: none; width: 52px; text-align: center;
+      color: #fff;
+      background: var(--accent);
+      flex: none; width: 52px; height: 52px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 0px;
+      text-align: center;
     }
 
-    /* ---- icon badges (assets/icons/tabler/*.svg via scripts/icons.mjs) ---- */
+    /* ---- icon badges (assets/icons/tabler/*.svg via scripts/icons.mjs) ----
+       Blueprint: soft gradient fill + glow shadow, rounded corners — reads
+       as a glass UI chip. Daylight: opaque flat accent fill, hard corners,
+       no shadow at all — reads as a printed rubber-stamp icon instead of
+       a glowing UI element, matching the rest of its flat-design card
+       language. */
     .icon-badge {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 92px; height: 92px; border-radius: 24px; flex: none;
-      background: linear-gradient(135deg, rgba(63,208,201,0.20), rgba(108,139,255,0.12));
-      border: 1px solid var(--border);
-      color: var(--accent);
-      box-shadow: 0 10px 28px rgba(63,208,201,0.18);
+      width: 92px; height: 92px; border-radius: 0px; flex: none;
+      background: var(--accent);
+      border: 3px solid var(--border);
+      color: #fffbf2;
+      box-shadow: none;
       margin-bottom: 32px;
     }
     .icon-badge svg { width: 46px; height: 46px; stroke-width: 1.75; }
     .icon-badge-sm {
-      width: 56px; height: 56px; border-radius: 16px; margin-bottom: 0;
-      box-shadow: 0 6px 16px rgba(63,208,201,0.15);
+      width: 56px; height: 56px; border-radius: 0px; margin-bottom: 0;
+      box-shadow: none;
     }
     .icon-badge-sm svg { width: 28px; height: 28px; }
     .list-icon {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 52px; height: 52px; border-radius: 14px; flex: none;
-      background: rgba(63,208,201,0.12); border: 1px solid var(--border);
-      color: var(--accent);
+      width: 52px; height: 52px; border-radius: 0px; flex: none;
+      background: var(--accent);
+      border: 2px solid var(--border);
+      color: #fffbf2;
     }
     .list-icon svg { width: 26px; height: 26px; stroke-width: 1.75; }
 
@@ -239,13 +290,21 @@
       color: var(--muted); margin: 0 0 10px;
     }
     .compare-track {
-      height: 30px; border-radius: 15px; overflow: hidden;
-      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      height: 30px; border-radius: 0px; overflow: hidden;
+      background: var(--card);
+      border: 1px solid var(--border);
     }
-    .compare-fill { height: 100%; border-radius: 15px; background: rgba(147,161,187,0.4); }
+    /* The non-highlighted bar's own fill was a hardcoded cool blue-gray
+       (rgba(147,161,187,...)) regardless of theme — barely noticeable
+       against Blueprint's own navy/teal palette, but visibly off-hue
+       against Daylight's warm cream/coral one. Themed via --muted
+       instead, at reduced opacity through color-mix (Chromium supports
+       it; this repo's render path is always headless Chromium, see
+       CLAUDE.md's core render contract). */
+    .compare-fill { height: 100%; border-radius: 0px; background: color-mix(in srgb, var(--muted) 55%, transparent); }
     .compare-fill.highlight {
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      box-shadow: 0 0 18px rgba(63,208,201,0.35);
+      background: var(--accent);
+      box-shadow: none;
     }
   </style>
 </head>
@@ -322,7 +381,7 @@ unicode: "eabc"
   <path d="M17 4l-4 16" />
 </svg>
 </div><h2 class="heading">What Actually Happens On Each Call</h2></div>
-      <div class="diagram-wrap card"><svg id="mmd-ylc4iqfnvcn" width="100%" xmlns="http://www.w3.org/2000/svg" class="flowchart" style="max-width: 531.953125px;" viewBox="0 0 531.953125 617.625" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#mmd-ylc4iqfnvcn{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#eef2f8;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#mmd-ylc4iqfnvcn .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#mmd-ylc4iqfnvcn .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#mmd-ylc4iqfnvcn .error-icon{fill:#101a2c;}#mmd-ylc4iqfnvcn .error-text{fill:#efe5d3;stroke:#efe5d3;}#mmd-ylc4iqfnvcn .edge-thickness-normal{stroke-width:1px;}#mmd-ylc4iqfnvcn .edge-thickness-thick{stroke-width:3.5px;}#mmd-ylc4iqfnvcn .edge-pattern-solid{stroke-dasharray:0;}#mmd-ylc4iqfnvcn .edge-thickness-invisible{stroke-width:0;fill:none;}#mmd-ylc4iqfnvcn .edge-pattern-dashed{stroke-dasharray:3;}#mmd-ylc4iqfnvcn .edge-pattern-dotted{stroke-dasharray:2;}#mmd-ylc4iqfnvcn .marker{fill:#6c8bff;stroke:#6c8bff;}#mmd-ylc4iqfnvcn .marker.cross{stroke:#6c8bff;}#mmd-ylc4iqfnvcn svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mmd-ylc4iqfnvcn p{margin:0;}#mmd-ylc4iqfnvcn .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#eef2f8;}#mmd-ylc4iqfnvcn .cluster-label text{fill:#efe5d3;}#mmd-ylc4iqfnvcn .cluster-label span{color:#efe5d3;}#mmd-ylc4iqfnvcn .cluster-label span p{background-color:transparent;}#mmd-ylc4iqfnvcn .label text,#mmd-ylc4iqfnvcn span{fill:#eef2f8;color:#eef2f8;}#mmd-ylc4iqfnvcn .node rect,#mmd-ylc4iqfnvcn .node circle,#mmd-ylc4iqfnvcn .node ellipse,#mmd-ylc4iqfnvcn .node polygon,#mmd-ylc4iqfnvcn .node path{fill:#132038;stroke:#3fd0c9;stroke-width:1px;}#mmd-ylc4iqfnvcn .rough-node .label text,#mmd-ylc4iqfnvcn .node .label text,#mmd-ylc4iqfnvcn .image-shape .label,#mmd-ylc4iqfnvcn .icon-shape .label{text-anchor:middle;}#mmd-ylc4iqfnvcn .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mmd-ylc4iqfnvcn .rough-node .label,#mmd-ylc4iqfnvcn .node .label,#mmd-ylc4iqfnvcn .image-shape .label,#mmd-ylc4iqfnvcn .icon-shape .label{text-align:center;}#mmd-ylc4iqfnvcn .node.clickable{cursor:pointer;}#mmd-ylc4iqfnvcn .root .anchor path{fill:#6c8bff!important;stroke-width:0;stroke:#6c8bff;}#mmd-ylc4iqfnvcn .arrowheadPath{fill:rgba(255, 255, 255, 0);}#mmd-ylc4iqfnvcn .edgePaths .path{stroke:#6c8bff;stroke-width:1px;}#mmd-ylc4iqfnvcn .flowchart-link{stroke:#6c8bff;fill:none;}#mmd-ylc4iqfnvcn .edgeLabel{background-color:#101a2c;text-align:center;}#mmd-ylc4iqfnvcn .edgeLabel p{background-color:#101a2c;}#mmd-ylc4iqfnvcn .edgeLabel rect{opacity:0.5;background-color:#101a2c;fill:#101a2c;}#mmd-ylc4iqfnvcn .labelBkg{background-color:rgba(16, 26, 44, 0.5);}#mmd-ylc4iqfnvcn .cluster rect{fill:#101a2c;stroke:hsl(218.5714285714, 6.6666666667%, 1.7647058824%);stroke-width:1px;}#mmd-ylc4iqfnvcn .cluster text{fill:#efe5d3;}#mmd-ylc4iqfnvcn .cluster span{color:#efe5d3;}#mmd-ylc4iqfnvcn .node .collapsed-indicator{fill:hsl(218.5714285714, 6.6666666667%, 1.7647058824%);stroke:none;opacity:0.6;}#mmd-ylc4iqfnvcn .node .collapsed-separator{stroke:hsl(218.5714285714, 6.6666666667%, 1.7647058824%);stroke-width:0.75px;}#mmd-ylc4iqfnvcn div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:#101a2c;border:1px solid hsl(218.5714285714, 6.6666666667%, 1.7647058824%);border-radius:2px;pointer-events:none;z-index:100;}#mmd-ylc4iqfnvcn .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#eef2f8;}#mmd-ylc4iqfnvcn rect.text{fill:none;stroke-width:0;}#mmd-ylc4iqfnvcn .icon-shape,#mmd-ylc4iqfnvcn .image-shape{background-color:#101a2c;text-align:center;}#mmd-ylc4iqfnvcn .icon-shape p,#mmd-ylc4iqfnvcn .image-shape p{background-color:#101a2c;padding:2px;}#mmd-ylc4iqfnvcn .icon-shape .label rect,#mmd-ylc4iqfnvcn .image-shape .label rect{opacity:0.5;background-color:#101a2c;fill:#101a2c;}#mmd-ylc4iqfnvcn .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#mmd-ylc4iqfnvcn .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#mmd-ylc4iqfnvcn .node .neo-node{stroke:#3fd0c9;}#mmd-ylc4iqfnvcn [data-look="neo"].node rect,#mmd-ylc4iqfnvcn [data-look="neo"].cluster rect,#mmd-ylc4iqfnvcn [data-look="neo"].node polygon{stroke:url(#mmd-ylc4iqfnvcn-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-ylc4iqfnvcn [data-look="neo"].swimlane.cluster rect{filter:none;}#mmd-ylc4iqfnvcn [data-look="neo"].node path{stroke:url(#mmd-ylc4iqfnvcn-gradient);stroke-width:1px;}#mmd-ylc4iqfnvcn [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-ylc4iqfnvcn [data-look="neo"].node .neo-line path{stroke:#3fd0c9;filter:none;}#mmd-ylc4iqfnvcn [data-look="neo"].node circle{stroke:url(#mmd-ylc4iqfnvcn-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-ylc4iqfnvcn [data-look="neo"].node circle .state-start{fill:#000000;}#mmd-ylc4iqfnvcn [data-look="neo"].icon-shape .icon{fill:url(#mmd-ylc4iqfnvcn-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-ylc4iqfnvcn [data-look="neo"].icon-shape .icon-neo path{stroke:url(#mmd-ylc4iqfnvcn-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-ylc4iqfnvcn :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="mmd-ylc4iqfnvcn_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-ylc4iqfnvcn_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-ylc4iqfnvcn_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-ylc4iqfnvcn_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id="mmd-ylc4iqfnvcn_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-ylc4iqfnvcn_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-ylc4iqfnvcn_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-ylc4iqfnvcn_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-ylc4iqfnvcn_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-ylc4iqfnvcn_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-ylc4iqfnvcn_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"></path></marker><marker id="mmd-ylc4iqfnvcn_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M261.855,62L261.855,66.167C261.855,70.333,261.855,78.667,261.855,86.333C261.855,94,261.855,101,261.855,104.5L261.855,108" id="mmd-ylc4iqfnvcn-L_A_B_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_B_0" data-points="W3sieCI6MjYxLjg1NTQ2ODc1LCJ5Ijo2Mn0seyJ4IjoyNjEuODU1NDY4NzUsInkiOjg3fSx7IngiOjI2MS44NTU0Njg3NSwieSI6MTEyfV0=" data-look="classic" marker-end="url(#mmd-ylc4iqfnvcn_flowchart-v2-pointEnd)"></path><path d="M208.417,276.187L193.871,291.26C179.325,306.333,150.233,336.479,135.687,357.052C121.141,377.625,121.141,388.625,121.141,394.125L121.141,399.625" id="mmd-ylc4iqfnvcn-L_B_C_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_C_0" data-points="W3sieCI6MjA4LjQxNzE2OTUxMDcyNTgsInkiOjI3Ni4xODY3MDA3NjA3MjU4NH0seyJ4IjoxMjEuMTQwNjI1LCJ5IjozNjYuNjI1fSx7IngiOjEyMS4xNDA2MjUsInkiOjQwMy42MjV9XQ==" data-look="classic" marker-end="url(#mmd-ylc4iqfnvcn_flowchart-v2-pointEnd)"></path><path d="M121.141,481.625L121.141,485.792C121.141,489.958,121.141,498.292,121.141,505.958C121.141,513.625,121.141,520.625,121.141,524.125L121.141,527.625" id="mmd-ylc4iqfnvcn-L_C_D_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_D_0" data-points="W3sieCI6MTIxLjE0MDYyNSwieSI6NDgxLjYyNX0seyJ4IjoxMjEuMTQwNjI1LCJ5Ijo1MDYuNjI1fSx7IngiOjEyMS4xNDA2MjUsInkiOjUzMS42MjV9XQ==" data-look="classic" marker-end="url(#mmd-ylc4iqfnvcn_flowchart-v2-pointEnd)"></path><path d="M315.294,276.187L329.84,291.26C344.386,306.333,373.478,336.479,388.024,357.052C402.57,377.625,402.57,388.625,402.57,394.125L402.57,399.625" id="mmd-ylc4iqfnvcn-L_B_E_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_E_0" data-points="W3sieCI6MzE1LjI5Mzc2Nzk4OTI3NDE2LCJ5IjoyNzYuMTg2NzAwNzYwNzI1ODR9LHsieCI6NDAyLjU3MDMxMjUsInkiOjM2Ni42MjV9LHsieCI6NDAyLjU3MDMxMjUsInkiOjQwMy42MjV9XQ==" data-look="classic" marker-end="url(#mmd-ylc4iqfnvcn_flowchart-v2-pointEnd)"></path><path d="M402.57,481.625L402.57,485.792C402.57,489.958,402.57,498.292,402.57,505.958C402.57,513.625,402.57,520.625,402.57,524.125L402.57,527.625" id="mmd-ylc4iqfnvcn-L_E_F_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_E_F_0" data-points="W3sieCI6NDAyLjU3MDMxMjUsInkiOjQ4MS42MjV9LHsieCI6NDAyLjU3MDMxMjUsInkiOjUwNi42MjV9LHsieCI6NDAyLjU3MDMxMjUsInkiOjUzMS42MjV9XQ==" data-look="classic" marker-end="url(#mmd-ylc4iqfnvcn_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_B_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(121.140625, 366.625)"><g class="label" data-id="L_B_C_0" transform="translate(-54.25, -12)"><foreignObject width="108.5" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "><p>Yes, within TTL</p></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_C_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(402.5703125, 366.625)"><g class="label" data-id="L_B_E_0" transform="translate(-50.25, -12)"><foreignObject width="100.5" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "><p>No, or expired</p></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_E_F_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default  " id="mmd-ylc4iqfnvcn-flowchart-A-0" data-look="classic" transform="translate(261.85546875, 35)"><rect class="basic label-container" style="" x="-86.0234375" y="-27" width="172.046875" height="54"></rect><g class="label" style="" transform="translate(-56.0234375, -12)"><rect></rect><foreignObject width="112.046875" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Request arrives</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-ylc4iqfnvcn-flowchart-B-1" data-look="classic" transform="translate(261.85546875, 220.8125)"><polygon points="108.8125,0 217.625,-108.8125 108.8125,-217.625 0,-108.8125" class="label-container" transform="translate(-108.3125, 108.8125)"></polygon><g class="label" style="" transform="translate(-69.8125, -24)"><rect></rect><foreignObject width="139.625" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Prefix byte-identical<br/>to a cached one?</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-ylc4iqfnvcn-flowchart-C-3" data-look="classic" transform="translate(121.140625, 442.625)"><rect class="basic label-container" style="" x="-113.140625" y="-39" width="226.28125" height="78"></rect><g class="label" style="" transform="translate(-83.140625, -24)"><rect></rect><foreignObject width="166.28125" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Cache hit:<br/>serve prefix from cache</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-ylc4iqfnvcn-flowchart-D-5" data-look="classic" transform="translate(121.140625, 570.625)"><rect class="basic label-container" style="" x="-110.046875" y="-39" width="220.09375" height="78"></rect><g class="label" style="" transform="translate(-80.046875, -24)"><rect></rect><foreignObject width="160.09375" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>~10% of input cost,<br/>up to 85% less latency</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-ylc4iqfnvcn-flowchart-E-7" data-look="classic" transform="translate(402.5703125, 442.625)"><rect class="basic label-container" style="" x="-98.921875" y="-39" width="197.84375" height="78"></rect><g class="label" style="" transform="translate(-68.921875, -24)"><rect></rect><foreignObject width="137.84375" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Cache miss:<br/>full prefill computed</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-ylc4iqfnvcn-flowchart-F-9" data-look="classic" transform="translate(402.5703125, 570.625)"><rect class="basic label-container" style="" x="-121.3828125" y="-39" width="242.765625" height="78"></rect><g class="label" style="" transform="translate(-91.3828125, -24)"><rect></rect><foreignObject width="182.765625" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Full input cost<br/>+ 25% to write new cache</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="mmd-ylc4iqfnvcn-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="mmd-ylc4iqfnvcn-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="mmd-ylc4iqfnvcn-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#3fd0c9" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(218.5714285714, 6.6666666667%, 1.7647058824%)" stop-opacity="1"></stop></linearGradient></svg></div>
+      <div class="diagram-wrap card"><svg id="mmd-3bdmwlbnpur" width="100%" xmlns="http://www.w3.org/2000/svg" class="flowchart" style="max-width: 531.953125px;" viewBox="0 0 531.953125 617.625" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#mmd-3bdmwlbnpur{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#241c14;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#mmd-3bdmwlbnpur .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#mmd-3bdmwlbnpur .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#mmd-3bdmwlbnpur .error-icon{fill:#f2e6d0;}#mmd-3bdmwlbnpur .error-text{fill:#0d192f;stroke:#0d192f;}#mmd-3bdmwlbnpur .edge-thickness-normal{stroke-width:1px;}#mmd-3bdmwlbnpur .edge-thickness-thick{stroke-width:3.5px;}#mmd-3bdmwlbnpur .edge-pattern-solid{stroke-dasharray:0;}#mmd-3bdmwlbnpur .edge-thickness-invisible{stroke-width:0;fill:none;}#mmd-3bdmwlbnpur .edge-pattern-dashed{stroke-dasharray:3;}#mmd-3bdmwlbnpur .edge-pattern-dotted{stroke-dasharray:2;}#mmd-3bdmwlbnpur .marker{fill:#241c14;stroke:#241c14;}#mmd-3bdmwlbnpur .marker.cross{stroke:#241c14;}#mmd-3bdmwlbnpur svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mmd-3bdmwlbnpur p{margin:0;}#mmd-3bdmwlbnpur .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#241c14;}#mmd-3bdmwlbnpur .cluster-label text{fill:#0d192f;}#mmd-3bdmwlbnpur .cluster-label span{color:#0d192f;}#mmd-3bdmwlbnpur .cluster-label span p{background-color:transparent;}#mmd-3bdmwlbnpur .label text,#mmd-3bdmwlbnpur span{fill:#241c14;color:#241c14;}#mmd-3bdmwlbnpur .node rect,#mmd-3bdmwlbnpur .node circle,#mmd-3bdmwlbnpur .node ellipse,#mmd-3bdmwlbnpur .node polygon,#mmd-3bdmwlbnpur .node path{fill:#fffbf2;stroke:#241c14;stroke-width:1px;}#mmd-3bdmwlbnpur .rough-node .label text,#mmd-3bdmwlbnpur .node .label text,#mmd-3bdmwlbnpur .image-shape .label,#mmd-3bdmwlbnpur .icon-shape .label{text-anchor:middle;}#mmd-3bdmwlbnpur .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mmd-3bdmwlbnpur .rough-node .label,#mmd-3bdmwlbnpur .node .label,#mmd-3bdmwlbnpur .image-shape .label,#mmd-3bdmwlbnpur .icon-shape .label{text-align:center;}#mmd-3bdmwlbnpur .node.clickable{cursor:pointer;}#mmd-3bdmwlbnpur .root .anchor path{fill:#241c14!important;stroke-width:0;stroke:#241c14;}#mmd-3bdmwlbnpur .arrowheadPath{fill:rgba(255, 255, 255, 0);}#mmd-3bdmwlbnpur .edgePaths .path{stroke:#241c14;stroke-width:1px;}#mmd-3bdmwlbnpur .flowchart-link{stroke:#241c14;fill:none;}#mmd-3bdmwlbnpur .edgeLabel{background-color:#f2e6d0;text-align:center;}#mmd-3bdmwlbnpur .edgeLabel p{background-color:#f2e6d0;}#mmd-3bdmwlbnpur .edgeLabel rect{opacity:0.5;background-color:#f2e6d0;fill:#f2e6d0;}#mmd-3bdmwlbnpur .labelBkg{background-color:rgba(242, 230, 208, 0.5);}#mmd-3bdmwlbnpur .cluster rect{fill:#f2e6d0;stroke:hsl(38.8235294118, 16.6666666667%, 78.2352941176%);stroke-width:1px;}#mmd-3bdmwlbnpur .cluster text{fill:#0d192f;}#mmd-3bdmwlbnpur .cluster span{color:#0d192f;}#mmd-3bdmwlbnpur .node .collapsed-indicator{fill:hsl(38.8235294118, 16.6666666667%, 78.2352941176%);stroke:none;opacity:0.6;}#mmd-3bdmwlbnpur .node .collapsed-separator{stroke:hsl(38.8235294118, 16.6666666667%, 78.2352941176%);stroke-width:0.75px;}#mmd-3bdmwlbnpur div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:#f2e6d0;border:1px solid hsl(38.8235294118, 16.6666666667%, 78.2352941176%);border-radius:2px;pointer-events:none;z-index:100;}#mmd-3bdmwlbnpur .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#241c14;}#mmd-3bdmwlbnpur rect.text{fill:none;stroke-width:0;}#mmd-3bdmwlbnpur .icon-shape,#mmd-3bdmwlbnpur .image-shape{background-color:#f2e6d0;text-align:center;}#mmd-3bdmwlbnpur .icon-shape p,#mmd-3bdmwlbnpur .image-shape p{background-color:#f2e6d0;padding:2px;}#mmd-3bdmwlbnpur .icon-shape .label rect,#mmd-3bdmwlbnpur .image-shape .label rect{opacity:0.5;background-color:#f2e6d0;fill:#f2e6d0;}#mmd-3bdmwlbnpur .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#mmd-3bdmwlbnpur .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#mmd-3bdmwlbnpur .node .neo-node{stroke:#241c14;}#mmd-3bdmwlbnpur [data-look="neo"].node rect,#mmd-3bdmwlbnpur [data-look="neo"].cluster rect,#mmd-3bdmwlbnpur [data-look="neo"].node polygon{stroke:url(#mmd-3bdmwlbnpur-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-3bdmwlbnpur [data-look="neo"].swimlane.cluster rect{filter:none;}#mmd-3bdmwlbnpur [data-look="neo"].node path{stroke:url(#mmd-3bdmwlbnpur-gradient);stroke-width:1px;}#mmd-3bdmwlbnpur [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-3bdmwlbnpur [data-look="neo"].node .neo-line path{stroke:#241c14;filter:none;}#mmd-3bdmwlbnpur [data-look="neo"].node circle{stroke:url(#mmd-3bdmwlbnpur-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-3bdmwlbnpur [data-look="neo"].node circle .state-start{fill:#000000;}#mmd-3bdmwlbnpur [data-look="neo"].icon-shape .icon{fill:url(#mmd-3bdmwlbnpur-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-3bdmwlbnpur [data-look="neo"].icon-shape .icon-neo path{stroke:url(#mmd-3bdmwlbnpur-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-3bdmwlbnpur :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="mmd-3bdmwlbnpur_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-3bdmwlbnpur_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-3bdmwlbnpur_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-3bdmwlbnpur_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id="mmd-3bdmwlbnpur_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-3bdmwlbnpur_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-3bdmwlbnpur_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-3bdmwlbnpur_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-3bdmwlbnpur_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-3bdmwlbnpur_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-3bdmwlbnpur_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"></path></marker><marker id="mmd-3bdmwlbnpur_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M261.855,62L261.855,66.167C261.855,70.333,261.855,78.667,261.855,86.333C261.855,94,261.855,101,261.855,104.5L261.855,108" id="mmd-3bdmwlbnpur-L_A_B_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_B_0" data-points="W3sieCI6MjYxLjg1NTQ2ODc1LCJ5Ijo2Mn0seyJ4IjoyNjEuODU1NDY4NzUsInkiOjg3fSx7IngiOjI2MS44NTU0Njg3NSwieSI6MTEyfV0=" data-look="classic" marker-end="url(#mmd-3bdmwlbnpur_flowchart-v2-pointEnd)"></path><path d="M208.417,276.187L193.871,291.26C179.325,306.333,150.233,336.479,135.687,357.052C121.141,377.625,121.141,388.625,121.141,394.125L121.141,399.625" id="mmd-3bdmwlbnpur-L_B_C_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_C_0" data-points="W3sieCI6MjA4LjQxNzE2OTUxMDcyNTgsInkiOjI3Ni4xODY3MDA3NjA3MjU4NH0seyJ4IjoxMjEuMTQwNjI1LCJ5IjozNjYuNjI1fSx7IngiOjEyMS4xNDA2MjUsInkiOjQwMy42MjV9XQ==" data-look="classic" marker-end="url(#mmd-3bdmwlbnpur_flowchart-v2-pointEnd)"></path><path d="M121.141,481.625L121.141,485.792C121.141,489.958,121.141,498.292,121.141,505.958C121.141,513.625,121.141,520.625,121.141,524.125L121.141,527.625" id="mmd-3bdmwlbnpur-L_C_D_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_D_0" data-points="W3sieCI6MTIxLjE0MDYyNSwieSI6NDgxLjYyNX0seyJ4IjoxMjEuMTQwNjI1LCJ5Ijo1MDYuNjI1fSx7IngiOjEyMS4xNDA2MjUsInkiOjUzMS42MjV9XQ==" data-look="classic" marker-end="url(#mmd-3bdmwlbnpur_flowchart-v2-pointEnd)"></path><path d="M315.294,276.187L329.84,291.26C344.386,306.333,373.478,336.479,388.024,357.052C402.57,377.625,402.57,388.625,402.57,394.125L402.57,399.625" id="mmd-3bdmwlbnpur-L_B_E_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_E_0" data-points="W3sieCI6MzE1LjI5Mzc2Nzk4OTI3NDE2LCJ5IjoyNzYuMTg2NzAwNzYwNzI1ODR9LHsieCI6NDAyLjU3MDMxMjUsInkiOjM2Ni42MjV9LHsieCI6NDAyLjU3MDMxMjUsInkiOjQwMy42MjV9XQ==" data-look="classic" marker-end="url(#mmd-3bdmwlbnpur_flowchart-v2-pointEnd)"></path><path d="M402.57,481.625L402.57,485.792C402.57,489.958,402.57,498.292,402.57,505.958C402.57,513.625,402.57,520.625,402.57,524.125L402.57,527.625" id="mmd-3bdmwlbnpur-L_E_F_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_E_F_0" data-points="W3sieCI6NDAyLjU3MDMxMjUsInkiOjQ4MS42MjV9LHsieCI6NDAyLjU3MDMxMjUsInkiOjUwNi42MjV9LHsieCI6NDAyLjU3MDMxMjUsInkiOjUzMS42MjV9XQ==" data-look="classic" marker-end="url(#mmd-3bdmwlbnpur_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_B_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(121.140625, 366.625)"><g class="label" data-id="L_B_C_0" transform="translate(-54.25, -12)"><foreignObject width="108.5" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "><p>Yes, within TTL</p></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_C_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(402.5703125, 366.625)"><g class="label" data-id="L_B_E_0" transform="translate(-50.25, -12)"><foreignObject width="100.5" height="24"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "><p>No, or expired</p></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_E_F_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default  " id="mmd-3bdmwlbnpur-flowchart-A-0" data-look="classic" transform="translate(261.85546875, 35)"><rect class="basic label-container" style="" x="-86.0234375" y="-27" width="172.046875" height="54"></rect><g class="label" style="" transform="translate(-56.0234375, -12)"><rect></rect><foreignObject width="112.046875" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Request arrives</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-3bdmwlbnpur-flowchart-B-1" data-look="classic" transform="translate(261.85546875, 220.8125)"><polygon points="108.8125,0 217.625,-108.8125 108.8125,-217.625 0,-108.8125" class="label-container" transform="translate(-108.3125, 108.8125)"></polygon><g class="label" style="" transform="translate(-69.8125, -24)"><rect></rect><foreignObject width="139.625" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Prefix byte-identical<br/>to a cached one?</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-3bdmwlbnpur-flowchart-C-3" data-look="classic" transform="translate(121.140625, 442.625)"><rect class="basic label-container" style="" x="-113.140625" y="-39" width="226.28125" height="78"></rect><g class="label" style="" transform="translate(-83.140625, -24)"><rect></rect><foreignObject width="166.28125" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Cache hit:<br/>serve prefix from cache</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-3bdmwlbnpur-flowchart-D-5" data-look="classic" transform="translate(121.140625, 570.625)"><rect class="basic label-container" style="" x="-110.046875" y="-39" width="220.09375" height="78"></rect><g class="label" style="" transform="translate(-80.046875, -24)"><rect></rect><foreignObject width="160.09375" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>~10% of input cost,<br/>up to 85% less latency</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-3bdmwlbnpur-flowchart-E-7" data-look="classic" transform="translate(402.5703125, 442.625)"><rect class="basic label-container" style="" x="-98.921875" y="-39" width="197.84375" height="78"></rect><g class="label" style="" transform="translate(-68.921875, -24)"><rect></rect><foreignObject width="137.84375" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Cache miss:<br/>full prefill computed</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-3bdmwlbnpur-flowchart-F-9" data-look="classic" transform="translate(402.5703125, 570.625)"><rect class="basic label-container" style="" x="-121.3828125" y="-39" width="242.765625" height="78"></rect><g class="label" style="" transform="translate(-91.3828125, -24)"><rect></rect><foreignObject width="182.765625" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Full input cost<br/>+ 25% to write new cache</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="mmd-3bdmwlbnpur-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="mmd-3bdmwlbnpur-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="mmd-3bdmwlbnpur-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#241c14" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(38.8235294118, 16.6666666667%, 78.2352941176%)" stop-opacity="1"></stop></linearGradient></svg></div>
     </div>
         
     <div class="footer">

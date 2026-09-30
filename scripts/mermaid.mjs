@@ -31,11 +31,17 @@ async function getMermaidSource() {
 
 /**
  * @param {string} definition - Mermaid diagram source (e.g. "graph TD; A-->B;")
- * @param {{theme?: string, look?: 'classic'|'handDrawn'}} [opts] - `look:
- *   'handDrawn'` switches Mermaid's own built-in rough.js-backed renderer on
- *   (a real, zero-extra-dependency alternative visual language already
- *   shipped in the vendored mermaid package — see CLAUDE.md "Diagram
- *   engines"). Left at Mermaid's default ('classic') unless requested.
+ * @param {{theme?: string, look?: 'classic'|'handDrawn', themeVariables?: object}} [opts] -
+ *   `look: 'handDrawn'` switches Mermaid's own built-in rough.js-backed
+ *   renderer on (a real, zero-extra-dependency alternative visual language
+ *   already shipped in the vendored mermaid package — see CLAUDE.md
+ *   "Diagram engines"). Left at Mermaid's default ('classic') unless
+ *   requested. `themeVariables` overrides the default Blueprint palette —
+ *   Mermaid diagrams don't inherit page CSS (see CLAUDE.md "Visual
+ *   identity"), so a carousel post using a non-Blueprint theme (e.g.
+ *   `templates/carousel.mjs`'s "daylight") has to pass its own matching
+ *   palette explicitly or the diagram renders in Blueprint's teal/navy
+ *   regardless of the rest of the slide.
  * @returns {Promise<string>} raw <svg>...</svg> markup, ids namespaced per call
  */
 export async function renderMermaid(definition, opts = {}) {
@@ -45,29 +51,31 @@ export async function renderMermaid(definition, opts = {}) {
     await page.setContent('<!DOCTYPE html><html><head></head><body></body></html>');
     await page.addScriptTag({ content: await getMermaidSource() });
     const id = `mmd-${Math.random().toString(36).slice(2)}`;
+    const themeVariables = {
+      background: 'transparent',
+      primaryColor: '#132038',
+      primaryTextColor: '#eef2f8',
+      primaryBorderColor: '#3fd0c9',
+      lineColor: '#6c8bff',
+      secondaryColor: '#101a2c',
+      tertiaryColor: '#101a2c',
+      ...opts.themeVariables,
+    };
     const svg = await page.evaluate(
-      async ({ definition, id, theme, look }) => {
+      async ({ definition, id, theme, look, themeVariables }) => {
         // eslint-disable-next-line no-undef
         mermaid.initialize({
           startOnLoad: false,
           theme: theme || 'base',
           look: look || 'classic',
           securityLevel: 'loose',
-          themeVariables: {
-            background: 'transparent',
-            primaryColor: '#132038',
-            primaryTextColor: '#eef2f8',
-            primaryBorderColor: '#3fd0c9',
-            lineColor: '#6c8bff',
-            secondaryColor: '#101a2c',
-            tertiaryColor: '#101a2c',
-          },
+          themeVariables,
         });
         // eslint-disable-next-line no-undef
         const { svg } = await mermaid.render(id, definition);
         return svg;
       },
-      { definition, id, theme: opts.theme, look: opts.look }
+      { definition, id, theme: opts.theme, look: opts.look, themeVariables }
     );
     return svg;
   } finally {

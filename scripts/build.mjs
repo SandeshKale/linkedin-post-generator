@@ -24,7 +24,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildHtml } from '../templates/carousel.mjs';
+import { buildHtml, resolveCarouselTheme } from '../templates/carousel.mjs';
 import { renderMermaid, closeMermaidBrowser } from './mermaid.mjs';
 import { renderD2 } from './d2.mjs';
 import { highlight } from './shiki.mjs';
@@ -39,12 +39,20 @@ if (!manifestArg) {
   process.exit(1);
 }
 
-async function hydrateSlide(slide) {
+async function hydrateSlide(slide, carouselTheme) {
   if (slide.type === 'diagram') {
     const diagramSvg =
       slide.engine === 'd2'
         ? await renderD2(slide.d2, { themeID: slide.d2ThemeId })
-        : await renderMermaid(slide.mermaid, { theme: slide.mermaidTheme || 'base', look: slide.look });
+        : await renderMermaid(slide.mermaid, {
+            theme: slide.mermaidTheme || 'base',
+            look: slide.look,
+            // Only Mermaid gets the carousel's own palette piped through —
+            // D2's theming is per-slide (d2ThemeId) already, see CLAUDE.md
+            // "Diagram engines"; unifying that with the carousel theme
+            // system is a follow-up, not done here.
+            themeVariables: carouselTheme.mermaidVariables,
+          });
     return { ...slide, diagramSvg };
   }
   if (slide.type === 'code') {
@@ -62,12 +70,14 @@ async function main() {
   const manifest = parseManifest(raw);
 
   console.log(`Building "${manifest.title}" (${manifest.slides.length} slides)...`);
-  const slides = await Promise.all(manifest.slides.map(hydrateSlide));
+  const carouselTheme = resolveCarouselTheme(manifest.theme);
+  const slides = await Promise.all(manifest.slides.map((slide) => hydrateSlide(slide, carouselTheme)));
 
   const html = buildHtml({
     title: manifest.title,
     author: manifest.author,
     handle: manifest.handle,
+    theme: manifest.theme,
     slides,
   });
 

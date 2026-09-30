@@ -20,6 +20,16 @@
       font-weight: 500; font-display: block;
     }
     @font-face {
+      font-family: 'Poppins';
+      src: url('../../assets/fonts/poppins/poppins-latin-800-normal.woff2') format('woff2');
+      font-weight: 800; font-display: block;
+    }
+    @font-face {
+      font-family: 'Poppins';
+      src: url('../../assets/fonts/poppins/poppins-latin-900-normal.woff2') format('woff2');
+      font-weight: 900; font-display: block;
+    }
+    @font-face {
       font-family: 'Inter';
       src: url('../../assets/fonts/inter/inter-latin-400-normal.woff2') format('woff2');
       font-weight: 400; font-display: block;
@@ -69,12 +79,28 @@
     }
     .slide:last-child { page-break-after: auto; }
 
-    /* Static dot-grid texture — no @keyframes/JS, this is a still document. */
+    /* Background texture: Blueprint's dot-grid + top-right glow (a "dark
+       tech UI" read) vs. Daylight's flat ruled-grid (a "graph paper" read)
+       — genuinely different texture language, not a recolored dot.
+
+       Gotcha: the grid line reused --border (Daylight's bold, near-opaque
+       ink color, the same one the card outlines use) and at 0.35 opacity
+       it was strong enough that wherever a line happened to fall inside
+       a letter's own counter/gap (a headline word wraps to an
+       unpredictable position depending on its text, so this isn't
+       something a fixed grid offset can dodge), it read as a stray mark
+       cutting through the glyph — caught only by rendering a real
+       headline and looking, not by reading the CSS, since the bug only
+       shows up wherever a line and a letter gap happen to coincide.
+       Fixed with a dedicated, much softer gridLineColor separate from
+       the bold --border card-outline color, the same "a shared color
+       needs checking against every surface it touches" lesson this file
+       already documents for the flow-GIF dossier theme's connector. */
     .bg-dots {
       position: absolute; inset: 0; z-index: 0;
       background-image: radial-gradient(circle, rgba(148,172,214,0.14) 1.6px, transparent 1.6px);
-      background-size: 28px 28px;
-      opacity: 0.55;
+        background-size: 28px 28px;
+        opacity: 0.55;
     }
     .bg-glow {
       position: absolute; z-index: 0; width: 640px; height: 640px; border-radius: 50%;
@@ -112,11 +138,17 @@
       color: var(--muted); margin: 0;
     }
 
+    /* Card shape: Blueprint's translucent glass card (soft border-radius,
+       barely-there fill) vs. Daylight's opaque solid card (hard corners,
+       a bold 3px ink border) — a real silhouette/material difference, the
+       same "don't just recolor the same rectangle" discipline
+       templates/flow-gif.mjs's own nodeShape gotcha already documents. */
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 20px;
       padding: 36px;
+      box-shadow: none;
     }
 
     .page-pill {
@@ -179,13 +211,21 @@
       overflow-wrap: anywhere;
     }
 
+    /* Stat value: Blueprint's gradient-clip text (a glowing "hero number"
+       read) vs. Daylight's flat solid ink with a bold accent underline
+       bar (a "stamped headline" read) — see the gradient-text gotcha
+       documented elsewhere in this repo (text-shadow must be explicitly
+       'none' on a background-clip:text span, or an inherited shadow
+       renders as a solid dark silhouette instead of the gradient); this
+       branch sidesteps that entirely for the underline variant since it
+       never uses background-clip in the first place. */
     .stat-value {
       font-family: 'Space Grotesk', sans-serif; font-weight: 700;
       font-size: 168px; line-height: 1; letter-spacing: -0.03em;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      -webkit-background-clip: text; background-clip: text; color: transparent;
-      filter: drop-shadow(0 6px 18px rgba(63,208,201,0.25));
       margin: 0 0 20px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none;
+        filter: drop-shadow(0 6px 18px rgba(63,208,201,0.25));
     }
     .stat-label { font-size: 34px; font-weight: 600; margin: 0 0 16px; }
     .stat-context { font-size: 28px; color: var(--muted); line-height: 1.5; margin: 0; }
@@ -199,10 +239,20 @@
     .list-items li:last-child { border-bottom: none; }
     .list-index {
       font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 26px;
-      color: var(--accent); flex: none; width: 52px; text-align: center;
+      color: var(--accent);
+      background: transparent;
+      flex: none; width: 52px; height: auto;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 0;
+      text-align: center;
     }
 
-    /* ---- icon badges (assets/icons/tabler/*.svg via scripts/icons.mjs) ---- */
+    /* ---- icon badges (assets/icons/tabler/*.svg via scripts/icons.mjs) ----
+       Blueprint: soft gradient fill + glow shadow, rounded corners — reads
+       as a glass UI chip. Daylight: opaque flat accent fill, hard corners,
+       no shadow at all — reads as a printed rubber-stamp icon instead of
+       a glowing UI element, matching the rest of its flat-design card
+       language. */
     .icon-badge {
       display: inline-flex; align-items: center; justify-content: center;
       width: 92px; height: 92px; border-radius: 24px; flex: none;
@@ -221,7 +271,8 @@
     .list-icon {
       display: inline-flex; align-items: center; justify-content: center;
       width: 52px; height: 52px; border-radius: 14px; flex: none;
-      background: rgba(63,208,201,0.12); border: 1px solid var(--border);
+      background: rgba(63,208,201,0.12);
+      border: 1px solid var(--border);
       color: var(--accent);
     }
     .list-icon svg { width: 26px; height: 26px; stroke-width: 1.75; }
@@ -240,9 +291,17 @@
     }
     .compare-track {
       height: 30px; border-radius: 15px; overflow: hidden;
-      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
     }
-    .compare-fill { height: 100%; border-radius: 15px; background: rgba(147,161,187,0.4); }
+    /* The non-highlighted bar's own fill was a hardcoded cool blue-gray
+       (rgba(147,161,187,...)) regardless of theme — barely noticeable
+       against Blueprint's own navy/teal palette, but visibly off-hue
+       against Daylight's warm cream/coral one. Themed via --muted
+       instead, at reduced opacity through color-mix (Chromium supports
+       it; this repo's render path is always headless Chromium, see
+       CLAUDE.md's core render contract). */
+    .compare-fill { height: 100%; border-radius: 15px; background: color-mix(in srgb, var(--muted) 55%, transparent); }
     .compare-fill.highlight {
       background: linear-gradient(90deg, var(--accent), var(--accent-2));
       box-shadow: 0 0 18px rgba(63,208,201,0.35);

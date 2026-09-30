@@ -120,6 +120,11 @@ export const manifestSchema = z
     title: z.string().min(1),
     author: z.string().optional(),
     handle: z.string().optional(),
+    // Named preset ('blueprint' default, or another key in
+    // templates/carousel.mjs's CAROUSEL_THEMES) or a full inline theme
+    // object — same pattern templates/flow-gif.mjs's `theme` field
+    // already uses. See CLAUDE.md "Visual identity (carousel)".
+    theme: z.union([z.string(), z.record(z.any())]).optional(),
     slides: z.array(slideSchema).min(1, 'manifest needs at least one slide'),
     // Not rendered on any slide — the post's own text, kept in the same
     // manifest as its media so one JSON file is the single source of truth

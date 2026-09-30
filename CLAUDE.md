@@ -602,7 +602,8 @@ linkedin-post-generator/
 │   ├── gif.mjs             Animated scene HTML → looping .gif, via deterministic Web Animations scrubbing
 │   └── build-cover.mjs     Flow manifest → cover.html + cover.png poster — see "Every post ships a cover image"
 ├── templates/
-│   ├── carousel.mjs        buildHtml({title, author, handle, slides}) — CSS + per-slide-type markup
+│   ├── carousel.mjs        buildHtml({title, author, handle, slides, theme}) — CSS + per-slide-type markup;
+│   │                       CAROUSEL_THEMES + resolveCarouselTheme() — see "Visual identity (carousel themes...)"
 │   └── flow-gif.mjs        buildFlowGifHtml({nodes, edges, ...}) — animated flow-diagram scene markup
 ├── content/
 │   ├── example-rag-guardrails.json   Sample manifest (all 6 slide types, no icons — tests the no-icon path)
@@ -719,6 +720,9 @@ lockstep, not just the former.
   "title": "...",                 // <title>, not shown on any slide
   "author": "Sandesh Kale",       // footer name, omit to hide the footer entirely
   "handle": "GenAI Solutions Architect", // footer subtitle, optional
+  "theme": "daylight",             // optional; named CAROUSEL_THEMES preset, full object, or
+                                    // { extends: '<preset>', ... } — defaults to "blueprint";
+                                    // see "Visual identity (carousel themes...)"
   "slides": [ { "type": "hook" | "diagram" | "code" | "stat" | "list" | "cta", "alt": "...", ... } ],
   "caption": "...",               // optional — the post's own text; not rendered on any slide
   "hashtags": ["GenAI", "..."]     // optional — without leading #, added by build.mjs
@@ -912,19 +916,94 @@ Adding a new vendored family follows the identical `bun add --no-save`
 "Typography house style" for the fuller rationale if this needs repeating
 for a fourth family.
 
-## Visual identity ("Blueprint" theme, and flow-gif's second theme)
+## Visual identity (carousel themes, and flow-gif's own theme system)
 
-`templates/carousel.mjs` still has exactly one theme, "Blueprint," living
-entirely as CSS custom properties in `baseStyles()` (`--bg`, `--accent`,
-`--accent-2`, `--text`, `--muted`, `--border`, `--card`) plus the matching
-`themeVariables` block in `scripts/mermaid.mjs::renderMermaid()` (Mermaid
-diagrams don't inherit page CSS — its palette has to be kept in sync by
-hand across both files). Deep slate background, static dot-grid texture,
-teal/blue accent gradient, soft top-right glow. If a future carousel post
-needs a visibly distinct identity, prefer adding a second theme (a `theme`
-field on the manifest selecting a second `themeVariables` object + a
-second CSS custom-property set) over mutating the existing one — don't
-silently reskin "Blueprint" out from under posts that already reference it.
+**`templates/carousel.mjs` had exactly one theme, "Blueprint," reused
+verbatim by every single carousel post in this repo (the original example,
+`speculative-decoding`, `rag-retrieval-quality`, `prompt-caching-economics`)
+until direct feedback called this out explicitly**: "why always the same
+damn design and format. you have so much at hand but still not using it at
+all" — landing after the flow-GIF side had *already* grown a real
+`THEMES`/`resolveTheme()` system (three presets, a `theme` manifest field,
+an `extends` override — see below) in response to the exact same complaint
+about *that* pipeline. The carousel side never got the same pressure until
+this point, which is exactly how it ended up as the one place in this repo
+still violating its own top-of-file "every post's media needs its own
+identity" rule three posts in a row. Fixed by porting the same pattern
+across: `CAROUSEL_THEMES` + an exported `resolveCarouselTheme()` in
+`templates/carousel.mjs`, a `theme` field on the manifest schema (named
+preset string, full inline object, or `{ extends, ...overrides }`, same
+resolution semantics as the flow-GIF side — kept as a parallel
+implementation rather than a shared import since the two theme shapes
+don't overlap: carousel themes carry `cardStyle`/`iconStyle`/`bgTexture`/
+`statValueStyle`, flow-GIF themes carry `nodeShape`/`connectorStyle`/etc.).
+
+`blueprint` (default, unchanged pixel-for-pixel — regression-checked by
+rebuilding all three existing posts and rendering them again) is a
+translucent glass card, rounded corners, soft glow, gradient-clip stat
+text, Space Grotesk. The second preset, `daylight`, is deliberately as far
+from that register as the flow-GIF side's own "dossier" was from
+"blueprint": light warm cream/paper background instead of dark, an opaque
+*solid* card with a bold hard-cornered ink border instead of a rounded
+glass one, flat solid-fill icon badges instead of soft gradient-glow ones,
+a ruled-grid "graph paper" texture instead of a dot-grid + corner glow,
+Poppins (already vendored — see "Typography") instead of Space Grotesk,
+and a solid-ink stat value with a bold underline bar instead of a
+gradient-clip glow. Real *component-language* differences, not a
+recolored version of the same shapes — the identical discipline
+`templates/flow-gif.mjs`'s own theme table already documents, now actually
+applied to the carousel side too. Every CSS block that used to hardcode a
+Blueprint-specific value (card border-radius, icon-badge shadow, stat-value
+gradient, compare-bar fill, background texture) now branches on the
+resolved theme's own `cardStyle`/`iconStyle`/`bgTexture`/`statValueStyle`
+flags instead.
+
+**Mermaid diagrams don't inherit page CSS** (still true, see below) — each
+carousel theme now carries its own `mermaidVariables` object,
+piped through `scripts/build.mjs`'s `hydrateSlide()` into
+`scripts/mermaid.mjs::renderMermaid()`'s `themeVariables` param (itself
+newly overridable — it used to hardcode the Blueprint palette
+unconditionally). A `daylight`-themed post with a Mermaid diagram slide
+now actually renders that diagram in the matching light/ink palette
+instead of staying Blueprint-teal regardless of the rest of the slide.
+D2 diagrams are **not** wired into this yet — D2 theming stays per-slide
+(`d2ThemeId`) as before; unifying it with the carousel theme system is a
+real gap, not an oversight, left for a follow-up.
+
+**Gotcha: the grid-texture background line reused the same bold ink color
+as the card borders, and wherever a line happened to fall inside a
+headline letter's own counter/gap, it read as a stray mark cutting through
+the glyph.** A headline's own text determines where it wraps, so this
+isn't something a fixed grid offset can dodge — caught only by rendering
+the actual `daylight`-themed hook slide and looking (a vertical grid line
+crossed directly through the word "single" in "every single call."), not
+by reading the CSS. Fixed with a dedicated, much softer `gridLineColor`
+per theme, separate from the bold `--border` used for card outlines — the
+same "check a shared color against every surface it touches, not just the
+first one it was designed against" lesson this file already documents for
+the flow-GIF dossier theme's connector color.
+
+**Gotcha: the stat-comparison bar's non-highlighted fill was a hardcoded
+cool blue-gray (`rgba(147,161,187,...)`) regardless of theme** — invisible
+as a problem against Blueprint's own navy/teal palette (close enough in
+hue to read as intentional), but visibly off-palette against Daylight's
+warm cream/coral one. Fixed by deriving it from the theme's own `--muted`
+custom property via `color-mix(in srgb, var(--muted) 55%, transparent)`
+instead of a fixed rgba literal — safe to rely on since this repo's render
+path is always headless Chromium (see "Core render contract"), which
+supports `color-mix()`.
+
+**Adding a third carousel theme**: add an entry to `CAROUSEL_THEMES`
+(`colors` + `sceneBg` + `displayFont` + `cardStyle` + `iconStyle` +
+`bgTexture` + `gridLineColor?` + `statValueStyle` + `mermaidVariables`) in
+`templates/carousel.mjs`, or hand a full custom object (optionally
+`{ extends: '<preset>', ... }`) straight to a manifest's `theme` field for
+a one-off post — same "reference point to remix, not a closed set" rule
+the flow-GIF `THEMES` object already documents. Vendor any new font
+weight it needs (see "Typography"), and **render every slide type at
+least once and look** before calling a new theme done — the stat/compare/
+list/diagram slide types each have their own theme-conditional CSS branch
+that a hook/cta-only smoke test won't exercise.
 
 **`templates/flow-gif.mjs`'s `theme` field takes either a preset name or a
 full inline theme object** — prompted by two rounds of direct feedback,

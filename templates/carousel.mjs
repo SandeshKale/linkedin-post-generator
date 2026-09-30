@@ -15,6 +15,91 @@ function esc(s = '') {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// Named carousel visual-identity presets — the static-carousel sibling of
+// templates/flow-gif.mjs's own `THEMES` object (same reasoning: this repo's
+// "every post's media needs its own identity" rule applies to carousels
+// just as hard as flow-GIF posts, and reusing the exact same theme on every
+// post — which every carousel in this repo did until now — is exactly the
+// violation that rule exists to prevent). `blueprint` is the original,
+// unchanged default; every other key is a genuinely different component
+// language (card shape, icon-badge treatment, background texture, display
+// font), not just a recolor — the same "remix the palette AND the shape
+// language" discipline the flow-GIF THEMES already document.
+const CAROUSEL_THEMES = {
+  blueprint: {
+    colors: {
+      bg: '#0b1220', bg2: '#101a2c', accent: '#3fd0c9', accent2: '#6c8bff',
+      text: '#eef2f8', muted: '#93a1bb', border: 'rgba(148, 172, 214, 0.22)', card: 'rgba(255, 255, 255, 0.04)',
+    },
+    sceneBg: '#05070c',
+    displayFont: 'Space Grotesk',
+    cardStyle: 'glass',
+    iconStyle: 'gradient-glow',
+    bgTexture: 'dots-glow',
+    statValueStyle: 'gradient-text',
+    // Mermaid diagrams don't inherit page CSS (see CLAUDE.md "Visual
+    // identity") — scripts/build.mjs reads this and passes it straight to
+    // scripts/mermaid.mjs::renderMermaid()'s `themeVariables` so a diagram
+    // slide's palette actually matches the rest of the theme instead of
+    // silently staying Blueprint-teal on every other theme.
+    mermaidVariables: {
+      background: 'transparent', primaryColor: '#132038', primaryTextColor: '#eef2f8',
+      primaryBorderColor: '#3fd0c9', lineColor: '#6c8bff', secondaryColor: '#101a2c', tertiaryColor: '#101a2c',
+    },
+  },
+  // A second reference point, deliberately as far from Blueprint's "dark
+  // tech UI" register as the flow-GIF side's own "dossier" theme was from
+  // its "blueprint" — light instead of dark, flat/opaque instead of
+  // glassy-translucent, hard corners instead of rounded, a bold ink
+  // border instead of a soft glow. Poppins (already vendored for the
+  // flow-GIF "audit" theme, see "Typography") reused here for the same
+  // reason it was picked there: a genuinely different display face, not
+  // just a different color on the same face.
+  daylight: {
+    colors: {
+      bg: '#faf3e6', bg2: '#f2e6d0', accent: '#d94f2b', accent2: '#0d6e5c',
+      text: '#241c14', muted: '#6b5c48', border: '#241c14', card: '#fffbf2',
+    },
+    sceneBg: '#f2e6d0',
+    displayFont: 'Poppins',
+    cardStyle: 'solid',
+    iconStyle: 'flat-solid',
+    bgTexture: 'grid',
+    gridLineColor: 'rgba(36, 28, 20, 0.12)',
+    statValueStyle: 'solid-underline',
+    mermaidVariables: {
+      background: 'transparent', primaryColor: '#fffbf2', primaryTextColor: '#241c14',
+      primaryBorderColor: '#241c14', lineColor: '#241c14', secondaryColor: '#f2e6d0', tertiaryColor: '#f2e6d0',
+    },
+  },
+};
+const DISPLAY_FONT_WEIGHTS = { 'Space Grotesk': 700, Poppins: 800 };
+
+/**
+ * Resolves a manifest's `theme` field (a named preset string, a full
+ * custom object, or `{ extends: '<preset>', ...overrides }`) to a
+ * complete theme object merged over `blueprint`'s defaults — same
+ * resolution logic (and the same `extends` escape hatch) as
+ * `templates/flow-gif.mjs`'s exported `resolveTheme()`, kept as a
+ * parallel implementation rather than a shared import since the two
+ * modules' theme shapes are genuinely different (carousel themes don't
+ * have `nodeShape`/`connectorStyle`/etc., flow-gif themes don't have
+ * `cardStyle`/`iconStyle`) — importing one from the other would just
+ * mean ignoring half its fields either direction.
+ */
+export function resolveCarouselTheme(theme = 'blueprint') {
+  const base = CAROUSEL_THEMES.blueprint;
+  const named = typeof theme === 'string' ? CAROUSEL_THEMES[theme] : null;
+  const custom = typeof theme === 'object' && theme ? theme : null;
+  const extended = custom && typeof custom.extends === 'string' ? CAROUSEL_THEMES[custom.extends] : null;
+  const picked = { ...base, ...(named || extended || {}), ...(custom || {}) };
+  return {
+    ...base,
+    ...picked,
+    colors: { ...base.colors, ...((named || extended)?.colors || {}), ...(custom?.colors || {}) },
+  };
+}
+
 // Reserves space LinkedIn's document viewer draws its own chrome over:
 // a page-counter pill (top-right) and swipe affordance (bottom-center) in
 // the feed preview, plus generous body margins so nothing hugs the edge.
@@ -22,7 +107,13 @@ const SAFE_TOP = 96;
 const SAFE_BOTTOM = 140;
 const SAFE_SIDE = 72;
 
-function baseStyles() {
+function baseStyles(T) {
+  const isGlass = T.cardStyle === 'glass';
+  const isFlatIcon = T.iconStyle === 'flat-solid';
+  const isGridTexture = T.bgTexture === 'grid';
+  const isUnderlineStat = T.statValueStyle === 'solid-underline';
+  const displayWeight = DISPLAY_FONT_WEIGHTS[T.displayFont] || 700;
+
   return `
     @page { size: ${PAGE_W}px ${PAGE_H}px; margin: 0; }
 
@@ -38,6 +129,16 @@ function baseStyles() {
       font-family: 'Space Grotesk';
       src: url('../../assets/fonts/space-grotesk/space-grotesk-latin-500-normal.woff2') format('woff2');
       font-weight: 500; font-display: block;
+    }
+    @font-face {
+      font-family: 'Poppins';
+      src: url('../../assets/fonts/poppins/poppins-latin-800-normal.woff2') format('woff2');
+      font-weight: 800; font-display: block;
+    }
+    @font-face {
+      font-family: 'Poppins';
+      src: url('../../assets/fonts/poppins/poppins-latin-900-normal.woff2') format('woff2');
+      font-weight: 900; font-display: block;
     }
     @font-face {
       font-family: 'Inter';
@@ -66,40 +167,63 @@ function baseStyles() {
     }
 
     :root {
-      --bg: #0b1220;
-      --bg-2: #101a2c;
-      --accent: #3fd0c9;
-      --accent-2: #6c8bff;
-      --text: #eef2f8;
-      --muted: #93a1bb;
-      --border: rgba(148, 172, 214, 0.22);
-      --card: rgba(255, 255, 255, 0.04);
+      --bg: ${T.colors.bg};
+      --bg-2: ${T.colors.bg2};
+      --accent: ${T.colors.accent};
+      --accent-2: ${T.colors.accent2};
+      --text: ${T.colors.text};
+      --muted: ${T.colors.muted};
+      --border: ${T.colors.border};
+      --card: ${T.colors.card};
     }
 
-    body { background: #05070c; font-family: 'Inter', sans-serif; }
+    body { background: ${T.sceneBg}; font-family: 'Inter', sans-serif; }
 
     .slide {
       position: relative;
       width: ${PAGE_W}px;
       height: ${PAGE_H}px;
       overflow: hidden;
-      background: radial-gradient(circle at 18% 8%, var(--bg-2), var(--bg) 60%);
+      background: ${isGlass ? 'radial-gradient(circle at 18% 8%, var(--bg-2), var(--bg) 60%)' : 'var(--bg)'};
       page-break-after: always;
       color: var(--text);
     }
     .slide:last-child { page-break-after: auto; }
 
-    /* Static dot-grid texture — no @keyframes/JS, this is a still document. */
+    /* Background texture: Blueprint's dot-grid + top-right glow (a "dark
+       tech UI" read) vs. Daylight's flat ruled-grid (a "graph paper" read)
+       — genuinely different texture language, not a recolored dot.
+
+       Gotcha: the grid line reused --border (Daylight's bold, near-opaque
+       ink color, the same one the card outlines use) and at 0.35 opacity
+       it was strong enough that wherever a line happened to fall inside
+       a letter's own counter/gap (a headline word wraps to an
+       unpredictable position depending on its text, so this isn't
+       something a fixed grid offset can dodge), it read as a stray mark
+       cutting through the glyph — caught only by rendering a real
+       headline and looking, not by reading the CSS, since the bug only
+       shows up wherever a line and a letter gap happen to coincide.
+       Fixed with a dedicated, much softer gridLineColor separate from
+       the bold --border card-outline color, the same "a shared color
+       needs checking against every surface it touches" lesson this file
+       already documents for the flow-GIF dossier theme's connector. */
     .bg-dots {
       position: absolute; inset: 0; z-index: 0;
-      background-image: radial-gradient(circle, rgba(148,172,214,0.14) 1.6px, transparent 1.6px);
-      background-size: 28px 28px;
-      opacity: 0.55;
+      ${
+        isGridTexture
+          ? `background-image:
+          repeating-linear-gradient(0deg, ${T.gridLineColor} 0px, ${T.gridLineColor} 1px, transparent 1px, transparent 64px),
+          repeating-linear-gradient(90deg, ${T.gridLineColor} 0px, ${T.gridLineColor} 1px, transparent 1px, transparent 64px);
+        opacity: 1;`
+          : `background-image: radial-gradient(circle, rgba(148,172,214,0.14) 1.6px, transparent 1.6px);
+        background-size: 28px 28px;
+        opacity: 0.55;`
+      }
     }
     .bg-glow {
       position: absolute; z-index: 0; width: 640px; height: 640px; border-radius: 50%;
       top: -220px; right: -220px;
-      background: radial-gradient(circle, rgba(63,208,201,0.20), transparent 70%);
+      background: ${isGlass ? 'radial-gradient(circle, rgba(63,208,201,0.20), transparent 70%)' : 'transparent'};
     }
 
     .safe {
@@ -117,14 +241,14 @@ function baseStyles() {
     }
 
     .headline {
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700; font-size: 72px; line-height: 1.12; letter-spacing: -0.02em;
+      font-family: '${T.displayFont}', sans-serif;
+      font-weight: ${displayWeight}; font-size: 72px; line-height: 1.12; letter-spacing: -0.02em;
       margin: 0 0 24px;
-      text-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      text-shadow: ${isGlass ? '0 4px 14px rgba(0,0,0,0.5)' : 'none'};
     }
     .heading {
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700; font-size: 48px; line-height: 1.18; letter-spacing: -0.015em;
+      font-family: '${T.displayFont}', sans-serif;
+      font-weight: ${displayWeight}; font-size: 48px; line-height: 1.18; letter-spacing: -0.015em;
       margin: 0 0 28px;
     }
     .sub {
@@ -132,20 +256,26 @@ function baseStyles() {
       color: var(--muted); margin: 0;
     }
 
+    /* Card shape: Blueprint's translucent glass card (soft border-radius,
+       barely-there fill) vs. Daylight's opaque solid card (hard corners,
+       a bold 3px ink border) — a real silhouette/material difference, the
+       same "don't just recolor the same rectangle" discipline
+       templates/flow-gif.mjs's own nodeShape gotcha already documents. */
     .card {
       background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 20px;
+      border: ${isGlass ? '1px solid var(--border)' : '3px solid var(--border)'};
+      border-radius: ${isGlass ? '20px' : '0px'};
       padding: 36px;
+      box-shadow: ${isGlass ? 'none' : '10px 10px 0 0 var(--border)'};
     }
 
     .page-pill {
       position: absolute; top: 32px; right: ${SAFE_SIDE}px; z-index: 2;
       font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600;
-      color: var(--muted);
-      background: rgba(255,255,255,0.06);
+      color: ${isGlass ? 'var(--muted)' : 'var(--text)'};
+      background: ${isGlass ? 'rgba(255,255,255,0.06)' : 'var(--card)'};
       border: 1px solid var(--border);
-      border-radius: 999px;
+      border-radius: ${isGlass ? '999px' : '0px'};
       padding: 8px 20px;
     }
 
@@ -154,10 +284,10 @@ function baseStyles() {
       display: flex; align-items: center; gap: 16px;
     }
     .footer-avatar {
-      width: 56px; height: 56px; border-radius: 50%;
+      width: 56px; height: 56px; border-radius: ${isGlass ? '50%' : '0px'};
       background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      border: 2px solid rgba(255,255,255,0.35);
-      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+      border: 2px solid ${isGlass ? 'rgba(255,255,255,0.35)' : 'var(--border)'};
+      box-shadow: ${isGlass ? '0 2px 10px rgba(0,0,0,0.4)' : 'none'};
       flex: none;
     }
     .footer-text { font-family: 'Inter', sans-serif; }
@@ -186,7 +316,7 @@ function baseStyles() {
 
     .code-card { flex: 1; overflow: hidden; }
     .code-card pre.shiki {
-      margin: 0; padding: 32px; border-radius: 16px;
+      margin: 0; padding: 32px; border-radius: ${isGlass ? '16px' : '0px'};
       font-family: 'JetBrains Mono', monospace !important;
       font-size: 22px !important; line-height: 1.5 !important;
       overflow: hidden;
@@ -199,13 +329,26 @@ function baseStyles() {
       overflow-wrap: anywhere;
     }
 
+    /* Stat value: Blueprint's gradient-clip text (a glowing "hero number"
+       read) vs. Daylight's flat solid ink with a bold accent underline
+       bar (a "stamped headline" read) — see the gradient-text gotcha
+       documented elsewhere in this repo (text-shadow must be explicitly
+       'none' on a background-clip:text span, or an inherited shadow
+       renders as a solid dark silhouette instead of the gradient); this
+       branch sidesteps that entirely for the underline variant since it
+       never uses background-clip in the first place. */
     .stat-value {
-      font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+      font-family: '${T.displayFont}', sans-serif; font-weight: ${displayWeight};
       font-size: 168px; line-height: 1; letter-spacing: -0.03em;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      -webkit-background-clip: text; background-clip: text; color: transparent;
-      filter: drop-shadow(0 6px 18px rgba(63,208,201,0.25));
       margin: 0 0 20px;
+      ${
+        isUnderlineStat
+          ? `color: var(--text); text-shadow: none;
+        border-bottom: 10px solid var(--accent); display: inline-block; padding-bottom: 8px;`
+          : `background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none;
+        filter: drop-shadow(0 6px 18px rgba(63,208,201,0.25));`
+      }
     }
     .stat-label { font-size: 34px; font-weight: 600; margin: 0 0 16px; }
     .stat-context { font-size: 28px; color: var(--muted); line-height: 1.5; margin: 0; }
@@ -219,30 +362,41 @@ function baseStyles() {
     .list-items li:last-child { border-bottom: none; }
     .list-index {
       font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 26px;
-      color: var(--accent); flex: none; width: 52px; text-align: center;
+      color: ${isFlatIcon ? '#fff' : 'var(--accent)'};
+      background: ${isFlatIcon ? 'var(--accent)' : 'transparent'};
+      flex: none; width: 52px; height: ${isFlatIcon ? '52px' : 'auto'};
+      display: flex; align-items: center; justify-content: center;
+      border-radius: ${isFlatIcon ? '0px' : '0'};
+      text-align: center;
     }
 
-    /* ---- icon badges (assets/icons/tabler/*.svg via scripts/icons.mjs) ---- */
+    /* ---- icon badges (assets/icons/tabler/*.svg via scripts/icons.mjs) ----
+       Blueprint: soft gradient fill + glow shadow, rounded corners — reads
+       as a glass UI chip. Daylight: opaque flat accent fill, hard corners,
+       no shadow at all — reads as a printed rubber-stamp icon instead of
+       a glowing UI element, matching the rest of its flat-design card
+       language. */
     .icon-badge {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 92px; height: 92px; border-radius: 24px; flex: none;
-      background: linear-gradient(135deg, rgba(63,208,201,0.20), rgba(108,139,255,0.12));
-      border: 1px solid var(--border);
-      color: var(--accent);
-      box-shadow: 0 10px 28px rgba(63,208,201,0.18);
+      width: 92px; height: 92px; border-radius: ${isFlatIcon ? '0px' : '24px'}; flex: none;
+      background: ${isFlatIcon ? 'var(--accent)' : 'linear-gradient(135deg, rgba(63,208,201,0.20), rgba(108,139,255,0.12))'};
+      border: ${isFlatIcon ? '3px solid var(--border)' : '1px solid var(--border)'};
+      color: ${isFlatIcon ? '#fffbf2' : 'var(--accent)'};
+      box-shadow: ${isFlatIcon ? 'none' : '0 10px 28px rgba(63,208,201,0.18)'};
       margin-bottom: 32px;
     }
     .icon-badge svg { width: 46px; height: 46px; stroke-width: 1.75; }
     .icon-badge-sm {
-      width: 56px; height: 56px; border-radius: 16px; margin-bottom: 0;
-      box-shadow: 0 6px 16px rgba(63,208,201,0.15);
+      width: 56px; height: 56px; border-radius: ${isFlatIcon ? '0px' : '16px'}; margin-bottom: 0;
+      box-shadow: ${isFlatIcon ? 'none' : '0 6px 16px rgba(63,208,201,0.15)'};
     }
     .icon-badge-sm svg { width: 28px; height: 28px; }
     .list-icon {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 52px; height: 52px; border-radius: 14px; flex: none;
-      background: rgba(63,208,201,0.12); border: 1px solid var(--border);
-      color: var(--accent);
+      width: 52px; height: 52px; border-radius: ${isFlatIcon ? '0px' : '14px'}; flex: none;
+      background: ${isFlatIcon ? 'var(--accent)' : 'rgba(63,208,201,0.12)'};
+      border: ${isFlatIcon ? '2px solid var(--border)' : '1px solid var(--border)'};
+      color: ${isFlatIcon ? '#fffbf2' : 'var(--accent)'};
     }
     .list-icon svg { width: 26px; height: 26px; stroke-width: 1.75; }
 
@@ -259,13 +413,21 @@ function baseStyles() {
       color: var(--muted); margin: 0 0 10px;
     }
     .compare-track {
-      height: 30px; border-radius: 15px; overflow: hidden;
-      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      height: 30px; border-radius: ${isGlass ? '15px' : '0px'}; overflow: hidden;
+      background: ${isGlass ? 'rgba(255,255,255,0.05)' : 'var(--card)'};
+      border: 1px solid var(--border);
     }
-    .compare-fill { height: 100%; border-radius: 15px; background: rgba(147,161,187,0.4); }
+    /* The non-highlighted bar's own fill was a hardcoded cool blue-gray
+       (rgba(147,161,187,...)) regardless of theme — barely noticeable
+       against Blueprint's own navy/teal palette, but visibly off-hue
+       against Daylight's warm cream/coral one. Themed via --muted
+       instead, at reduced opacity through color-mix (Chromium supports
+       it; this repo's render path is always headless Chromium, see
+       CLAUDE.md's core render contract). */
+    .compare-fill { height: 100%; border-radius: ${isGlass ? '15px' : '0px'}; background: color-mix(in srgb, var(--muted) 55%, transparent); }
     .compare-fill.highlight {
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      box-shadow: 0 0 18px rgba(63,208,201,0.35);
+      background: ${isGlass ? 'linear-gradient(90deg, var(--accent), var(--accent-2))' : 'var(--accent)'};
+      box-shadow: ${isGlass ? '0 0 18px rgba(63,208,201,0.35)' : 'none'};
     }
   `;
 }
@@ -380,7 +542,8 @@ const RENDERERS = {
   cta: renderCta,
 };
 
-export function buildHtml({ title, author, handle, slides }) {
+export function buildHtml({ title, author, handle, slides, theme }) {
+  const T = resolveCarouselTheme(theme);
   const total = slides.length;
   const body = slides
     .map((slide, i) => {
@@ -402,7 +565,7 @@ export function buildHtml({ title, author, handle, slides }) {
 <head>
 <meta charset="utf-8">
 <title>${esc(title)}</title>
-<style>${baseStyles()}</style>
+<style>${baseStyles(T)}</style>
 </head>
 <body>
 ${body}

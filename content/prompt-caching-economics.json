@@ -3,6 +3,7 @@
   "title": "You're Paying Full Price For The Same Prompt Prefix, Every Call",
   "author": "Sandesh Kale",
   "handle": "GenAI Solutions Architect",
+  "theme": "daylight",
   "slides": [
     {
       "type": "hook",
