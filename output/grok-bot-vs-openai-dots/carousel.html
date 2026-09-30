@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Two AI Labs Shipped The Same Idea, Seven Weeks Apart</title>
+<style>
+    @page { size: 1080px 1350px; margin: 0; }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+
+    @font-face {
+      font-family: 'Space Grotesk';
+      src: url('../../assets/fonts/space-grotesk/space-grotesk-latin-700-normal.woff2') format('woff2');
+      font-weight: 700; font-display: block;
+    }
+    @font-face {
+      font-family: 'Space Grotesk';
+      src: url('../../assets/fonts/space-grotesk/space-grotesk-latin-500-normal.woff2') format('woff2');
+      font-weight: 500; font-display: block;
+    }
+    @font-face {
+      font-family: 'Poppins';
+      src: url('../../assets/fonts/poppins/poppins-latin-800-normal.woff2') format('woff2');
+      font-weight: 800; font-display: block;
+    }
+    @font-face {
+      font-family: 'Poppins';
+      src: url('../../assets/fonts/poppins/poppins-latin-900-normal.woff2') format('woff2');
+      font-weight: 900; font-display: block;
+    }
+    @font-face {
+      font-family: 'Inter';
+      src: url('../../assets/fonts/inter/inter-latin-400-normal.woff2') format('woff2');
+      font-weight: 400; font-display: block;
+    }
+    @font-face {
+      font-family: 'Inter';
+      src: url('../../assets/fonts/inter/inter-latin-600-normal.woff2') format('woff2');
+      font-weight: 600; font-display: block;
+    }
+    @font-face {
+      font-family: 'Inter';
+      src: url('../../assets/fonts/inter/inter-latin-700-normal.woff2') format('woff2');
+      font-weight: 700; font-display: block;
+    }
+    @font-face {
+      font-family: 'JetBrains Mono';
+      src: url('../../assets/fonts/jetbrains-mono/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+      font-weight: 400; font-display: block;
+    }
+    @font-face {
+      font-family: 'JetBrains Mono';
+      src: url('../../assets/fonts/jetbrains-mono/jetbrains-mono-latin-600-normal.woff2') format('woff2');
+      font-weight: 600; font-display: block;
+    }
+
+    :root {
+      --bg: #0b1220;
+      --bg-2: #101a2c;
+      --accent: #3fd0c9;
+      --accent-2: #6c8bff;
+      --text: #eef2f8;
+      --muted: #93a1bb;
+      --border: rgba(148, 172, 214, 0.22);
+      --card: rgba(255, 255, 255, 0.04);
+    }
+
+    body { background: #05070c; font-family: 'Inter', sans-serif; }
+
+    .slide {
+      position: relative;
+      width: 1080px;
+      height: 1350px;
+      overflow: hidden;
+      background: radial-gradient(circle at 18% 8%, var(--bg-2), var(--bg) 60%);
+      page-break-after: always;
+      color: var(--text);
+    }
+    .slide:last-child { page-break-after: auto; }
+
+    /* Background texture: Blueprint's dot-grid + top-right glow (a "dark
+       tech UI" read) vs. Daylight's flat ruled-grid (a "graph paper" read)
+       — genuinely different texture language, not a recolored dot.
+
+       Gotcha: the grid line reused --border (Daylight's bold, near-opaque
+       ink color, the same one the card outlines use) and at 0.35 opacity
+       it was strong enough that wherever a line happened to fall inside
+       a letter's own counter/gap (a headline word wraps to an
+       unpredictable position depending on its text, so this isn't
+       something a fixed grid offset can dodge), it read as a stray mark
+       cutting through the glyph — caught only by rendering a real
+       headline and looking, not by reading the CSS, since the bug only
+       shows up wherever a line and a letter gap happen to coincide.
+       Fixed with a dedicated, much softer gridLineColor separate from
+       the bold --border card-outline color, the same "a shared color
+       needs checking against every surface it touches" lesson this file
+       already documents for the flow-GIF dossier theme's connector. */
+    .bg-dots {
+      position: absolute; inset: 0; z-index: 0;
+      background-image: radial-gradient(circle, rgba(148,172,214,0.14) 1.6px, transparent 1.6px);
+        background-size: 28px 28px;
+        opacity: 0.55;
+    }
+    .bg-glow {
+      position: absolute; z-index: 0; width: 640px; height: 640px; border-radius: 50%;
+      top: -220px; right: -220px;
+      background: radial-gradient(circle, rgba(63,208,201,0.20), transparent 70%);
+    }
+
+    .safe {
+      position: relative; z-index: 1;
+      padding: 96px 72px 140px;
+      height: 100%;
+      display: flex; flex-direction: column;
+    }
+
+    .eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px; font-weight: 600; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--accent);
+      margin: 0 0 18px;
+    }
+
+    .headline {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 72px; line-height: 1.12; letter-spacing: -0.02em;
+      margin: 0 0 24px;
+      text-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    }
+    .heading {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 48px; line-height: 1.18; letter-spacing: -0.015em;
+      margin: 0 0 28px;
+    }
+    .sub {
+      font-family: 'Inter', sans-serif; font-weight: 400; font-size: 32px; line-height: 1.45;
+      color: var(--muted); margin: 0;
+    }
+
+    /* Card shape: Blueprint's translucent glass card (soft border-radius,
+       barely-there fill) vs. Daylight's opaque solid card (hard corners,
+       a bold 3px ink border) — a real silhouette/material difference, the
+       same "don't just recolor the same rectangle" discipline
+       templates/flow-gif.mjs's own nodeShape gotcha already documents. */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px;
+      box-shadow: none;
+    }
+
+    .page-pill {
+      position: absolute; top: 32px; right: 72px; z-index: 2;
+      font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600;
+      color: var(--muted);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 20px;
+    }
+
+    .footer {
+      position: absolute; left: 72px; bottom: 44px; z-index: 2;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .footer-avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border: 2px solid rgba(255,255,255,0.35);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+      flex: none;
+    }
+    .footer-text { font-family: 'Inter', sans-serif; }
+    .footer-name { font-size: 24px; font-weight: 700; margin: 0; }
+    .footer-handle { font-size: 20px; color: var(--muted); margin: 0; }
+
+    /* ---- slide-type specific ---- */
+    .slide-hook .safe { justify-content: center; }
+    .slide-cta .safe { justify-content: center; align-items: flex-start; }
+
+    /* min-height: 0 is load-bearing, not defensive: a flex item's default
+       min-height is 'auto', which lets it grow to its content's intrinsic
+       size regardless of flex: 1 — so a diagram whose own SVG is
+       intrinsically taller than the card (a tall vertical D2 flowchart,
+       unlike this repo's existing wide/short Mermaid diagrams, which
+       never happened to trigger this) silently overflowed straight past
+       the card and off the bottom of the slide, with max-height: 100%
+       below never even getting a bounded ancestor height to resolve
+       against. Caught by measuring the actual rendered getBoundingClientRect
+       of .diagram-wrap (2256px tall inside a 1350px slide) in a real
+       Playwright page, not by reading this CSS — the generated SVG
+       markup and even its width/height attributes looked completely
+       correct in isolation. */
+    .diagram-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .diagram-wrap svg { max-width: 100%; max-height: 100%; }
+
+    .code-card { flex: 1; overflow: hidden; }
+    .code-card pre.shiki {
+      margin: 0; padding: 32px; border-radius: 16px;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 22px !important; line-height: 1.5 !important;
+      overflow: hidden;
+      /* A code line longer than the card is a static image, not a
+         terminal — there's no horizontal scroll to fall back on, so wrap
+         instead of clipping. Found by rendering a real slide and looking
+         at it (see CLAUDE.md "Verify visually"): a >70-char Python line
+         silently ran off the right edge of the card. */
+      white-space: pre-wrap !important;
+      overflow-wrap: anywhere;
+    }
+
+    /* Stat value: Blueprint's gradient-clip text (a glowing "hero number"
+       read) vs. Daylight's flat solid ink with a bold accent underline
+       bar (a "stamped headline" read) — see the gradient-text gotcha
+       documented elsewhere in this repo (text-shadow must be explicitly
+       'none' on a background-clip:text span, or an inherited shadow
+       renders as a solid dark silhouette instead of the gradient); this
+       branch sidesteps that entirely for the underline variant since it
+       never uses background-clip in the first place. */
+    .stat-value {
+      font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+      font-size: 168px; line-height: 1; letter-spacing: -0.03em;
+      margin: 0 0 20px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none;
+        filter: drop-shadow(0 6px 18px rgba(63,208,201,0.25));
+    }
+    .stat-label { font-size: 34px; font-weight: 600; margin: 0 0 16px; }
+    .stat-context { font-size: 28px; color: var(--muted); line-height: 1.5; margin: 0; }
+
+    .list-items { list-style: none; margin: 0; padding: 0; flex: 1; }
+    .list-items li {
+      display: flex; gap: 24px; align-items: center;
+      font-size: 32px; line-height: 1.4; padding: 22px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .list-items li:last-child { border-bottom: none; }
+    .list-index {
+      font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 26px;
+      color: var(--accent);
+      background: transparent;
+      flex: none; width: 52px; height: auto;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 0;
+      text-align: center;
+    }
+
+    /* ---- icon badges (assets/icons/tabler/*.svg via scripts/icons.mjs) ----
+       Blueprint: soft gradient fill + glow shadow, rounded corners — reads
+       as a glass UI chip. Daylight: opaque flat accent fill, hard corners,
+       no shadow at all — reads as a printed rubber-stamp icon instead of
+       a glowing UI element, matching the rest of its flat-design card
+       language. */
+    .icon-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 92px; height: 92px; border-radius: 24px; flex: none;
+      background: linear-gradient(135deg, rgba(63,208,201,0.20), rgba(108,139,255,0.12));
+      border: 1px solid var(--border);
+      color: var(--accent);
+      box-shadow: 0 10px 28px rgba(63,208,201,0.18);
+      margin-bottom: 32px;
+    }
+    .icon-badge svg { width: 46px; height: 46px; stroke-width: 1.75; }
+    .icon-badge-sm {
+      width: 56px; height: 56px; border-radius: 16px; margin-bottom: 0;
+      box-shadow: 0 6px 16px rgba(63,208,201,0.15);
+    }
+    .icon-badge-sm svg { width: 28px; height: 28px; }
+    .list-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 52px; height: 52px; border-radius: 14px; flex: none;
+      background: rgba(63,208,201,0.12);
+      border: 1px solid var(--border);
+      color: var(--accent);
+    }
+    .list-icon svg { width: 26px; height: 26px; stroke-width: 1.75; }
+
+    .heading-row { display: flex; align-items: center; gap: 22px; margin-bottom: 28px; }
+    .heading-row .heading { margin: 0; }
+
+    /* ---- stat comparison bars — an optional visual instead of a number
+       floating alone; see the "compare" field on a stat slide. ---- */
+    .compare-chart { margin-top: 44px; }
+    .compare-row { margin-bottom: 26px; }
+    .compare-row:last-child { margin-bottom: 0; }
+    .compare-row-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 24px;
+      color: var(--muted); margin: 0 0 10px;
+    }
+    .compare-track {
+      height: 30px; border-radius: 15px; overflow: hidden;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+    }
+    /* The non-highlighted bar's own fill was a hardcoded cool blue-gray
+       (rgba(147,161,187,...)) regardless of theme — barely noticeable
+       against Blueprint's own navy/teal palette, but visibly off-hue
+       against Daylight's warm cream/coral one. Themed via --muted
+       instead, at reduced opacity through color-mix (Chromium supports
+       it; this repo's render path is always headless Chromium, see
+       CLAUDE.md's core render contract). */
+    .compare-fill { height: 100%; border-radius: 15px; background: color-mix(in srgb, var(--muted) 55%, transparent); }
+    .compare-fill.highlight {
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      box-shadow: 0 0 18px rgba(63,208,201,0.35);
+    }
+  </style>
+</head>
+<body>
+
+      <section class="slide slide-hook">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">1 / 6</div>
+        
+    <div class="safe">
+      <div class="icon-badge"><!--
+tags: [technology, ai, machine, bot, android, robot, entertainment, playing, recreation, fun]
+category: Games
+version: "1.53"
+unicode: "f00b"
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M6 6a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -4" />
+  <path d="M12 2v2" />
+  <path d="M9 12v9" />
+  <path d="M15 12v9" />
+  <path d="M5 16l4 -2" />
+  <path d="M15 14l4 2" />
+  <path d="M9 18h6" />
+  <path d="M10 8v.01" />
+  <path d="M14 8v.01" />
+</svg>
+</div>
+      <p class="eyebrow">Agent Architecture</p>
+      <h1 class="headline">Two AI labs shipped the same idea, seven weeks apart.</h1>
+      <p class="sub">xAI's Grok Bot and OpenAI's Dots both give an agent its own cloud computer. The architecture choices underneath are where they actually diverge.</p>
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+
+      <section class="slide slide-diagram">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">2 / 6</div>
+        
+    <div class="safe">
+      <div class="heading-row"><div class="icon-badge icon-badge-sm"><!--
+tags: [connection, internet, communication, connect, web, signal, network, computing, machine, processor]
+category: Computers
+version: "1.61"
+unicode: "f09f"
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M6 9a6 6 0 1 0 12 0a6 6 0 0 0 -12 0" />
+  <path d="M12 3c1.333 .333 2 2.333 2 6s-.667 5.667 -2 6" />
+  <path d="M12 3c-1.333 .333 -2 2.333 -2 6s.667 5.667 2 6" />
+  <path d="M6 9h12" />
+  <path d="M3 20h7" />
+  <path d="M14 20h7" />
+  <path d="M10 20a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+  <path d="M12 15v3" />
+</svg>
+</div><h2 class="heading">Same Core Idea, Two Different Builds</h2></div>
+      <div class="diagram-wrap card"><svg id="mmd-xcq09nq3q6" width="100%" xmlns="http://www.w3.org/2000/svg" class="flowchart" style="max-width: 586px;" viewBox="0 0 586 350" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#mmd-xcq09nq3q6{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#eef2f8;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#mmd-xcq09nq3q6 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#mmd-xcq09nq3q6 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#mmd-xcq09nq3q6 .error-icon{fill:#101a2c;}#mmd-xcq09nq3q6 .error-text{fill:#efe5d3;stroke:#efe5d3;}#mmd-xcq09nq3q6 .edge-thickness-normal{stroke-width:1px;}#mmd-xcq09nq3q6 .edge-thickness-thick{stroke-width:3.5px;}#mmd-xcq09nq3q6 .edge-pattern-solid{stroke-dasharray:0;}#mmd-xcq09nq3q6 .edge-thickness-invisible{stroke-width:0;fill:none;}#mmd-xcq09nq3q6 .edge-pattern-dashed{stroke-dasharray:3;}#mmd-xcq09nq3q6 .edge-pattern-dotted{stroke-dasharray:2;}#mmd-xcq09nq3q6 .marker{fill:#6c8bff;stroke:#6c8bff;}#mmd-xcq09nq3q6 .marker.cross{stroke:#6c8bff;}#mmd-xcq09nq3q6 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mmd-xcq09nq3q6 p{margin:0;}#mmd-xcq09nq3q6 .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#eef2f8;}#mmd-xcq09nq3q6 .cluster-label text{fill:#efe5d3;}#mmd-xcq09nq3q6 .cluster-label span{color:#efe5d3;}#mmd-xcq09nq3q6 .cluster-label span p{background-color:transparent;}#mmd-xcq09nq3q6 .label text,#mmd-xcq09nq3q6 span{fill:#eef2f8;color:#eef2f8;}#mmd-xcq09nq3q6 .node rect,#mmd-xcq09nq3q6 .node circle,#mmd-xcq09nq3q6 .node ellipse,#mmd-xcq09nq3q6 .node polygon,#mmd-xcq09nq3q6 .node path{fill:#132038;stroke:#3fd0c9;stroke-width:1px;}#mmd-xcq09nq3q6 .rough-node .label text,#mmd-xcq09nq3q6 .node .label text,#mmd-xcq09nq3q6 .image-shape .label,#mmd-xcq09nq3q6 .icon-shape .label{text-anchor:middle;}#mmd-xcq09nq3q6 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#mmd-xcq09nq3q6 .rough-node .label,#mmd-xcq09nq3q6 .node .label,#mmd-xcq09nq3q6 .image-shape .label,#mmd-xcq09nq3q6 .icon-shape .label{text-align:center;}#mmd-xcq09nq3q6 .node.clickable{cursor:pointer;}#mmd-xcq09nq3q6 .root .anchor path{fill:#6c8bff!important;stroke-width:0;stroke:#6c8bff;}#mmd-xcq09nq3q6 .arrowheadPath{fill:rgba(255, 255, 255, 0);}#mmd-xcq09nq3q6 .edgePaths .path{stroke:#6c8bff;stroke-width:1px;}#mmd-xcq09nq3q6 .flowchart-link{stroke:#6c8bff;fill:none;}#mmd-xcq09nq3q6 .edgeLabel{background-color:#101a2c;text-align:center;}#mmd-xcq09nq3q6 .edgeLabel p{background-color:#101a2c;}#mmd-xcq09nq3q6 .edgeLabel rect{opacity:0.5;background-color:#101a2c;fill:#101a2c;}#mmd-xcq09nq3q6 .labelBkg{background-color:rgba(16, 26, 44, 0.5);}#mmd-xcq09nq3q6 .cluster rect{fill:#101a2c;stroke:hsl(218.5714285714, 6.6666666667%, 1.7647058824%);stroke-width:1px;}#mmd-xcq09nq3q6 .cluster text{fill:#efe5d3;}#mmd-xcq09nq3q6 .cluster span{color:#efe5d3;}#mmd-xcq09nq3q6 .node .collapsed-indicator{fill:hsl(218.5714285714, 6.6666666667%, 1.7647058824%);stroke:none;opacity:0.6;}#mmd-xcq09nq3q6 .node .collapsed-separator{stroke:hsl(218.5714285714, 6.6666666667%, 1.7647058824%);stroke-width:0.75px;}#mmd-xcq09nq3q6 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:#101a2c;border:1px solid hsl(218.5714285714, 6.6666666667%, 1.7647058824%);border-radius:2px;pointer-events:none;z-index:100;}#mmd-xcq09nq3q6 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#eef2f8;}#mmd-xcq09nq3q6 rect.text{fill:none;stroke-width:0;}#mmd-xcq09nq3q6 .icon-shape,#mmd-xcq09nq3q6 .image-shape{background-color:#101a2c;text-align:center;}#mmd-xcq09nq3q6 .icon-shape p,#mmd-xcq09nq3q6 .image-shape p{background-color:#101a2c;padding:2px;}#mmd-xcq09nq3q6 .icon-shape .label rect,#mmd-xcq09nq3q6 .image-shape .label rect{opacity:0.5;background-color:#101a2c;fill:#101a2c;}#mmd-xcq09nq3q6 .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#mmd-xcq09nq3q6 .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#mmd-xcq09nq3q6 .node .neo-node{stroke:#3fd0c9;}#mmd-xcq09nq3q6 [data-look="neo"].node rect,#mmd-xcq09nq3q6 [data-look="neo"].cluster rect,#mmd-xcq09nq3q6 [data-look="neo"].node polygon{stroke:url(#mmd-xcq09nq3q6-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-xcq09nq3q6 [data-look="neo"].swimlane.cluster rect{filter:none;}#mmd-xcq09nq3q6 [data-look="neo"].node path{stroke:url(#mmd-xcq09nq3q6-gradient);stroke-width:1px;}#mmd-xcq09nq3q6 [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-xcq09nq3q6 [data-look="neo"].node .neo-line path{stroke:#3fd0c9;filter:none;}#mmd-xcq09nq3q6 [data-look="neo"].node circle{stroke:url(#mmd-xcq09nq3q6-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-xcq09nq3q6 [data-look="neo"].node circle .state-start{fill:#000000;}#mmd-xcq09nq3q6 [data-look="neo"].icon-shape .icon{fill:url(#mmd-xcq09nq3q6-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-xcq09nq3q6 [data-look="neo"].icon-shape .icon-neo path{stroke:url(#mmd-xcq09nq3q6-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#mmd-xcq09nq3q6 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="mmd-xcq09nq3q6_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-xcq09nq3q6_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-xcq09nq3q6_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-xcq09nq3q6_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id="mmd-xcq09nq3q6_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-xcq09nq3q6_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-xcq09nq3q6_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-xcq09nq3q6_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="mmd-xcq09nq3q6_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-xcq09nq3q6_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="mmd-xcq09nq3q6_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"></path></marker><marker id="mmd-xcq09nq3q6_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M212.519,62L200.099,66.167C187.679,70.333,162.84,78.667,150.42,86.333C138,94,138,101,138,104.5L138,108" id="mmd-xcq09nq3q6-L_A_B_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_B_0" data-points="W3sieCI6MjEyLjUxOTIzMDc2OTIzMDc3LCJ5Ijo2Mn0seyJ4IjoxMzgsInkiOjg3fSx7IngiOjEzOCwieSI6MTEyfV0=" data-look="classic" marker-end="url(#mmd-xcq09nq3q6_flowchart-v2-pointEnd)"></path><path d="M373.481,62L385.901,66.167C398.321,70.333,423.16,78.667,435.58,86.333C448,94,448,101,448,104.5L448,108" id="mmd-xcq09nq3q6-L_A_C_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_C_0" data-points="W3sieCI6MzczLjQ4MDc2OTIzMDc2OTIsInkiOjYyfSx7IngiOjQ0OCwieSI6ODd9LHsieCI6NDQ4LCJ5IjoxMTJ9XQ==" data-look="classic" marker-end="url(#mmd-xcq09nq3q6_flowchart-v2-pointEnd)"></path><path d="M138,190L138,194.167C138,198.333,138,206.667,138,214.333C138,222,138,229,138,232.5L138,236" id="mmd-xcq09nq3q6-L_B_D_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_D_0" data-points="W3sieCI6MTM4LCJ5IjoxOTB9LHsieCI6MTM4LCJ5IjoyMTV9LHsieCI6MTM4LCJ5IjoyNDB9XQ==" data-look="classic" marker-end="url(#mmd-xcq09nq3q6_flowchart-v2-pointEnd)"></path><path d="M448,190L448,194.167C448,198.333,448,206.667,448,214.333C448,222,448,229,448,232.5L448,236" id="mmd-xcq09nq3q6-L_C_E_0" class=" edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_E_0" data-points="W3sieCI6NDQ4LCJ5IjoxOTB9LHsieCI6NDQ4LCJ5IjoyMTV9LHsieCI6NDQ4LCJ5IjoyNDB9XQ==" data-look="classic" marker-end="url(#mmd-xcq09nq3q6_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_B_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_A_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_B_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_C_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel "></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default  " id="mmd-xcq09nq3q6-flowchart-A-0" data-look="classic" transform="translate(293, 35)"><rect class="basic label-container" style="" x="-98.484375" y="-27" width="196.96875" height="54"></rect><g class="label" style="" transform="translate(-68.484375, -12)"><rect></rect><foreignObject width="136.96875" height="24"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>Always-on AI agent</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-xcq09nq3q6-flowchart-B-1" data-look="classic" transform="translate(138, 151)"><rect class="basic label-container" style="" x="-113.9296875" y="-39" width="227.859375" height="78"></rect><g class="label" style="" transform="translate(-83.9296875, -24)"><rect></rect><foreignObject width="167.859375" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>xAI: Grok Bot<br/>Launched Aug 11, 2026</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-xcq09nq3q6-flowchart-C-3" data-look="classic" transform="translate(448, 151)"><rect class="basic label-container" style="" x="-114.96875" y="-39" width="229.9375" height="78"></rect><g class="label" style="" transform="translate(-84.96875, -24)"><rect></rect><foreignObject width="169.9375" height="48"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel "><p>OpenAI: Dots<br/>Launched Sep 29, 2026</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-xcq09nq3q6-flowchart-D-5" data-look="classic" transform="translate(138, 291)"><rect class="basic label-container" style="" x="-130" y="-51" width="260" height="102"></rect><g class="label" style="" transform="translate(-100, -36)"><rect></rect><foreignObject width="200" height="72"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel "><p>Own cloud computer +<br/>direct agent-to-agent coordination</p></span></div></foreignObject></g></g><g class="node default  " id="mmd-xcq09nq3q6-flowchart-E-7" data-look="classic" transform="translate(448, 291)"><rect class="basic label-container" style="" x="-130" y="-51" width="260" height="102"></rect><g class="label" style="" transform="translate(-100, -36)"><rect></rect><foreignObject width="200" height="72"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel "><p>Own cloud computer +<br/>4,000-app connector network</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="mmd-xcq09nq3q6-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="mmd-xcq09nq3q6-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="mmd-xcq09nq3q6-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#3fd0c9" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(218.5714285714, 6.6666666667%, 1.7647058824%)" stop-opacity="1"></stop></linearGradient></svg></div>
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+
+      <section class="slide slide-list">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">3 / 6</div>
+        
+    <div class="safe">
+      <h2 class="heading">Where They Actually Differ</h2>
+      <ul class="list-items"><li><span class="list-icon"><!--
+tags: [people, persons, accounts, users, control, operation, function, interface, management]
+category: System
+version: "1.7"
+unicode: "ebf2"
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+  <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  <path d="M21 21v-2a4 4 0 0 0 -3 -3.85" />
+</svg>
+</span><span>Grok Bot treats multi-agent coordination as a first-class feature — bots message each other directly, pass work, and assign ownership inside shared group chats.</span></li><li><span class="list-icon"><!--
+tags: [console, command, git, command line, command prompt, terminal, programming, software, coding, technical]
+category: Development
+version: "1.7"
+unicode: "ebef"
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M8 9l3 3l-3 3" />
+  <path d="M13 15l3 0" />
+  <path d="M3 6a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2l0 -12" />
+</svg>
+</span><span>Grok Bot is built to operate tools that have no clean API or MCP support — closer to general computer-use automation than a curated integration list.</span></li><li><span class="list-icon"><!--
+tags: [jigsaw, extension, add-on, puzzle, entertainment, playing, recreation, fun, activity, 2]
+category: Games
+version: "1.46"
+unicode: "ef83"
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12" />
+  <path d="M12 4v2.5a.5 .5 0 0 1 -.5 .5a1.5 1.5 0 0 0 0 3a.5 .5 0 0 1 .5 .5v1.5" />
+  <path d="M12 12v1.5a.5 .5 0 0 0 .5 .5a1.5 1.5 0 0 1 0 3a.5 .5 0 0 0 -.5 .5v2.5" />
+  <path d="M20 12h-2.5a.5 .5 0 0 1 -.5 -.5a1.5 1.5 0 0 0 -3 0a.5 .5 0 0 1 -.5 .5h-1.5" />
+  <path d="M12 12h-1.5a.5 .5 0 0 0 -.5 .5a1.5 1.5 0 0 1 -3 0a.5 .5 0 0 0 -.5 -.5h-2.5" />
+</svg>
+</span><span>Dots leans on OpenAI's existing plugin ecosystem — 4,000+ pre-built app connectors instead of raw computer-use — tighter integrations, narrower reach.</span></li><li><span class="list-icon"><!--
+tags: [comment, chat, reply, message, circle, contact, conversation, round, circular, messaging]
+category: Communication
+version: "1.0"
+unicode: "eaed"
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 20l1.3 -3.9c-2.324 -3.437 -1.426 -7.872 2.1 -10.374c3.526 -2.501 8.59 -2.296 11.845 .48c3.255 2.777 3.695 7.266 1.029 10.501c-2.666 3.235 -7.615 4.215 -11.574 2.293l-4.7 1" />
+</svg>
+</span><span>Dots is reachable from more surfaces at launch — ChatGPT, Slack, Microsoft Teams, with phone audio coming soon — a distribution edge, not an architecture one.</span></li></ul>
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+
+      <section class="slide slide-stat">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">4 / 6</div>
+        
+    <div class="safe">
+      <div class="icon-badge"><!--
+tags: [time, watch, alarm, clock, control, operation, function, interface, management]
+category: System
+version: "1.0"
+unicode: "ea70"
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+  <path d="M12 7v5l3 3" />
+</svg>
+</div>
+      <p class="stat-value">49 Days</p>
+      <p class="stat-label">Between the two launches</p>
+      <p class="stat-context">xAI shipped Grok Bot on August 11, 2026. OpenAI shipped Dots at DevDay on September 29, 2026 — the same core bet (give an agent its own persistent cloud computer) from two competing labs, seven weeks apart.</p>
+      
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+
+      <section class="slide slide-list">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">5 / 6</div>
+        
+    <div class="safe">
+      <h2 class="heading">What This Means If You're Building Agents</h2>
+      <ul class="list-items"><li><span class="list-index">01</span><span>Give your own agents a persistent compute environment, not just stateless API calls — both labs converged on this independently, which is a real signal, not a coincidence.</span></li><li><span class="list-index">02</span><span>Direct agent-to-agent messaging (not just user-mediated handoffs) is worth studying if you're designing a multi-agent system — Grok Bot's group-chat coordination model is a real reference point.</span></li><li><span class="list-index">03</span><span>Curated connectors vs. raw computer-use is a build-vs-integrate tradeoff you'll hit too: broader instant reach vs. deeper flexibility on tools with no API.</span></li><li><span class="list-index">04</span><span>Neither lab has published hard reliability or cost numbers yet. Treat vendor agent-autonomy claims as directional until you've actually tested them on your own workload.</span></li></ul>
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+
+      <section class="slide slide-cta">
+        <div class="bg-dots"></div>
+        <div class="bg-glow"></div>
+        <div class="page-pill">6 / 6</div>
+        
+    <div class="safe">
+      <div class="icon-badge"><svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class="icon icon-tabler icons-tabler-outline icon-tabler-rocket"
+>
+  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+  <path d="M4 13a8 8 0 0 1 7 7a6 6 0 0 0 3 -5a9 9 0 0 0 6 -8a3 3 0 0 0 -3 -3a9 9 0 0 0 -8 6a6 6 0 0 0 -5 3" />
+  <path d="M7 14a6 6 0 0 0 -3 6a6 6 0 0 0 6 -3" />
+  <path d="M14 9a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+</svg></div>
+      <h1 class="headline">Test the claims before you trust the demo.</h1>
+      <p class="sub">Both products are days old. Follow for the actual head-to-head once there's real usage data to compare.</p>
+    </div>
+        
+    <div class="footer">
+      <div class="footer-avatar"></div>
+      <div class="footer-text">
+        <p class="footer-name">Sandesh Kale</p>
+        <p class="footer-handle">GenAI Solutions Architect</p>
+      </div>
+    </div>
+      </section>
+</body>
+</html>
