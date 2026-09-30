@@ -3,7 +3,7 @@
   "title": "Two AI Labs Shipped The Same Idea, Seven Weeks Apart",
   "author": "Sandesh Kale",
   "handle": "GenAI Solutions Architect",
-  "theme": "blueprint",
+  "theme": "terminal",
   "slides": [
     {
       "type": "hook",
@@ -17,7 +17,8 @@
       "type": "diagram",
       "icon": "network",
       "heading": "Same Core Idea, Two Different Builds",
-      "mermaid": "flowchart TD\n  A[Always-on AI agent] --> B[\"xAI: Grok Bot\nLaunched Aug 11, 2026\"]\n  A --> C[\"OpenAI: Dots\nLaunched Sep 29, 2026\"]\n  B --> D[\"Own cloud computer +\ndirect agent-to-agent coordination\"]\n  C --> E[\"Own cloud computer +\n4,000-app connector network\"]",
+      "engine": "d2",
+      "d2": "always_on: Always-on AI agent\n\ngrok: |md\n  **xAI: Grok Bot**\n  Launched Aug 11, 2026\n|\n\ndots: |md\n  **OpenAI: Dots**\n  Launched Sep 29, 2026\n|\n\ngrok_arch: |md\n  Own cloud computer +\n  direct agent-to-agent coordination\n|\n\ndots_arch: |md\n  Own cloud computer +\n  4,000-app connector network\n|\n\nalways_on -> grok\nalways_on -> dots\ngrok -> grok_arch\ndots -> dots_arch",
       "alt": "Mermaid flowchart, top to bottom: 'Always-on AI agent' splits into two branches. Left branch: 'xAI: Grok Bot, launched Aug 11, 2026' leading to 'Own cloud computer + direct agent-to-agent coordination'. Right branch: 'OpenAI: Dots, launched Sep 29, 2026' leading to 'Own cloud computer + 4,000-app connector network'. A simple two-branch comparison tree."
     },
     {

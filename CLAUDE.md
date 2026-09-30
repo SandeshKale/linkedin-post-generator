@@ -993,17 +993,69 @@ instead of a fixed rgba literal — safe to rely on since this repo's render
 path is always headless Chromium (see "Core render contract"), which
 supports `color-mix()`.
 
-**Adding a third carousel theme**: add an entry to `CAROUSEL_THEMES`
+**A third carousel theme, `terminal`, was added after picking `blueprint`
+— the original, most-reused preset — for the very next post right after
+this whole theme system was built specifically because of the "why always
+the same damn design" complaint.** Direct follow-up feedback: "something
+is wrong with you... you again went back to that same style and format."
+The mistake wasn't really the color choice — it was building a system
+that only ever varied two booleans (`isGlass`/`isFlatIcon`) and assuming a
+third *value* on those same two flags would count as a new identity. It
+wouldn't have. `terminal` is a genuinely different component language,
+not a third color on the same two shapes: monospace display type used
+for **headlines**, not just the eyebrow every other theme already sets in
+mono (`displayFont: 'JetBrains Mono'`, added to `DISPLAY_FONT_WEIGHTS`);
+bracket-cornered "reticle" frames on cards and icon badges
+(`cardStyle`/`iconStyle: 'terminal'`/`'bracket'` — open-corner `::before`/
+`::after` pseudo-elements, same "an open silhouette reads as a different
+shape, a closed rectangle with a new border color doesn't" lesson
+`templates/flow-gif.mjs`'s `folderTabPath()` gotcha already documents,
+ported to 2D CSS instead of an SVG path) instead of a rounded-glass or
+solid-ink rectangle; a CRT scanline background (`bgTexture: 'scanlines'`)
+instead of dots or a ruled grid; and a literal terminal-prompt stat value
+(`statValueStyle: 'terminal-prompt'` — `> 49 Days_`, a `::before`/`::after`
+prompt-prefix and cursor-block, not a gradient or an underline) instead of
+a hero number. The eyebrow gets a `$ ` prefix and list-index badges get
+`[01]` brackets for the same reason, both cheap `::before`/`::after`
+additions once the bracket motif existed. Picked for an AI-agent-
+architecture post specifically because it reads as a spec sheet / command
+output, not a costume — the same "fits the topic, isn't a gimmick" bar
+`templates/flow-gif.mjs`'s own theme choices are held to.
+
+**The diagram slide for that same post was also switched from the
+default `mermaid` engine to `d2`** (sketch mode) — not for the theme
+system's sake, but because every carousel post up to that point had used
+Mermaid's straight, clean boxes regardless of topic or theme, which is
+the identical "same visual language every time" problem one level down
+from color. D2's hand-drawn wobble is a real, different diagram language,
+not a recolor of the same tree. Its own `d2ThemeId` (unrelated to the
+carousel `theme` system — see "D2 diagrams are **not** wired into this
+yet" above) doesn't match the terminal green palette, and rendering
+confirmed it reads as a distinct purple-toned panel inside the green
+terminal frame rather than a clash — closer to "a log viewer with its own
+syntax highlighting" than a mismatch, but this is exactly the kind of
+call that has to be checked by rendering and looking, not assumed either
+way from the CSS.
+
+**Adding a fourth carousel theme**: add an entry to `CAROUSEL_THEMES`
 (`colors` + `sceneBg` + `displayFont` + `cardStyle` + `iconStyle` +
 `bgTexture` + `gridLineColor?` + `statValueStyle` + `mermaidVariables`) in
 `templates/carousel.mjs`, or hand a full custom object (optionally
 `{ extends: '<preset>', ... }`) straight to a manifest's `theme` field for
 a one-off post — same "reference point to remix, not a closed set" rule
-the flow-GIF `THEMES` object already documents. Vendor any new font
-weight it needs (see "Typography"), and **render every slide type at
-least once and look** before calling a new theme done — the stat/compare/
-list/diagram slide types each have their own theme-conditional CSS branch
-that a hook/cta-only smoke test won't exercise.
+the flow-GIF `THEMES` object already documents. **A new value bolted onto
+an existing boolean flag (a third color where the CSS still only branches
+`isX ? a : b`) is not a new theme** — if the new preset doesn't need at
+least one genuinely new CSS flag/branch (a new shape, a new texture
+mechanism, a new type treatment), it's a recolor, which is the exact
+regression documented above. Vendor any new font weight it needs (see
+"Typography"), and **render every slide type at least once and look**
+before calling a new theme done — the stat/compare/list/diagram slide
+types each have their own theme-conditional CSS branch that a hook/cta-
+only smoke test won't exercise. **Also vary the diagram engine
+(`mermaid` vs `d2`) per post based on what actually fits, not out of
+habit** — reusing Mermaid on every post is the same regression as reusing
+`blueprint`, just one layer down.
 
 **`templates/flow-gif.mjs`'s `theme` field takes either a preset name or a
 full inline theme object** — prompted by two rounds of direct feedback,

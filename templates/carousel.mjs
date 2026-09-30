@@ -72,8 +72,39 @@ const CAROUSEL_THEMES = {
       primaryBorderColor: '#241c14', lineColor: '#241c14', secondaryColor: '#f2e6d0', tertiaryColor: '#f2e6d0',
     },
   },
+  // Third reference point, added after direct feedback that reusing
+  // "blueprint" on the very next post — right after building this theme
+  // system specifically because of the "why always the same damn design"
+  // complaint — was the exact same regression again: a third color
+  // variant on the same two card/icon shapes wouldn't have fixed that,
+  // since the complaint was never really about color. This is a genuinely
+  // different component language, not a third value bolted onto the same
+  // isGlass/isFlatIcon booleans: monospace display type used for
+  // headlines too (not just the eyebrow, which every other theme already
+  // does), bracket-cornered "reticle" card/icon frames instead of a
+  // rounded-glass or solid-ink rectangle, a CRT scanline background
+  // instead of dots or a ruled grid, and a literal terminal-prompt stat
+  // value ("> 49 Days_") instead of gradient-clip or underline text. Fits
+  // an AI-agent-architecture topic without being a gimmick — reads as a
+  // spec sheet / terminal readout, not a costume.
+  terminal: {
+    colors: {
+      bg: '#070b08', bg2: '#0c130d', accent: '#3ddc84', accent2: '#ffb454',
+      text: '#d9f5e3', muted: '#5f7a68', border: 'rgba(61, 220, 132, 0.35)', card: '#0c130d',
+    },
+    sceneBg: '#05070a',
+    displayFont: 'JetBrains Mono',
+    cardStyle: 'terminal',
+    iconStyle: 'bracket',
+    bgTexture: 'scanlines',
+    statValueStyle: 'terminal-prompt',
+    mermaidVariables: {
+      background: 'transparent', primaryColor: '#0c130d', primaryTextColor: '#d9f5e3',
+      primaryBorderColor: '#3ddc84', lineColor: '#ffb454', secondaryColor: '#0c130d', tertiaryColor: '#0c130d',
+    },
+  },
 };
-const DISPLAY_FONT_WEIGHTS = { 'Space Grotesk': 700, Poppins: 800 };
+const DISPLAY_FONT_WEIGHTS = { 'Space Grotesk': 700, Poppins: 800, 'JetBrains Mono': 600 };
 
 /**
  * Resolves a manifest's `theme` field (a named preset string, a full
@@ -109,9 +140,13 @@ const SAFE_SIDE = 72;
 
 function baseStyles(T) {
   const isGlass = T.cardStyle === 'glass';
+  const isTerminal = T.cardStyle === 'terminal';
   const isFlatIcon = T.iconStyle === 'flat-solid';
+  const isBracketIcon = T.iconStyle === 'bracket';
   const isGridTexture = T.bgTexture === 'grid';
+  const isScanlines = T.bgTexture === 'scanlines';
   const isUnderlineStat = T.statValueStyle === 'solid-underline';
+  const isTerminalStat = T.statValueStyle === 'terminal-prompt';
   const displayWeight = DISPLAY_FONT_WEIGHTS[T.displayFont] || 700;
 
   return `
@@ -215,6 +250,9 @@ function baseStyles(T) {
           repeating-linear-gradient(0deg, ${T.gridLineColor} 0px, ${T.gridLineColor} 1px, transparent 1px, transparent 64px),
           repeating-linear-gradient(90deg, ${T.gridLineColor} 0px, ${T.gridLineColor} 1px, transparent 1px, transparent 64px);
         opacity: 1;`
+          : isScanlines
+          ? `background-image: repeating-linear-gradient(0deg, rgba(61,220,132,0.06) 0px, rgba(61,220,132,0.06) 1px, transparent 1px, transparent 4px);
+        opacity: 1;`
           : `background-image: radial-gradient(circle, rgba(148,172,214,0.14) 1.6px, transparent 1.6px);
         background-size: 28px 28px;
         opacity: 0.55;`
@@ -239,6 +277,7 @@ function baseStyles(T) {
       text-transform: uppercase; color: var(--accent);
       margin: 0 0 18px;
     }
+    ${isTerminal ? `.eyebrow::before { content: '$ '; color: var(--muted); }` : ''}
 
     .headline {
       font-family: '${T.displayFont}', sans-serif;
@@ -262,11 +301,26 @@ function baseStyles(T) {
        same "don't just recolor the same rectangle" discipline
        templates/flow-gif.mjs's own nodeShape gotcha already documents. */
     .card {
+      position: relative;
       background: var(--card);
-      border: ${isGlass ? '1px solid var(--border)' : '3px solid var(--border)'};
+      border: ${isGlass ? '1px solid var(--border)' : isTerminal ? '1px solid var(--accent)' : '3px solid var(--border)'};
       border-radius: ${isGlass ? '20px' : '0px'};
       padding: 36px;
-      box-shadow: ${isGlass ? 'none' : '10px 10px 0 0 var(--border)'};
+      box-shadow: ${isGlass || isTerminal ? 'none' : '10px 10px 0 0 var(--border)'};
+    }
+    /* Terminal theme's "reticle" corner brackets — an actual different
+       silhouette cue (open corners, not a closed rectangle), not just a
+       third border color on the same closed box every other theme uses. */
+    ${
+      isTerminal
+        ? `
+    .card::before, .card::after {
+      content: ''; position: absolute; width: 22px; height: 22px; border-color: var(--accent); border-style: solid;
+    }
+    .card::before { top: -1px; left: -1px; border-width: 3px 0 0 3px; }
+    .card::after { bottom: -1px; right: -1px; border-width: 0 3px 3px 0; }
+    `
+        : ''
     }
 
     .page-pill {
@@ -342,13 +396,27 @@ function baseStyles(T) {
       font-size: 168px; line-height: 1; letter-spacing: -0.03em;
       margin: 0 0 20px;
       ${
-        isUnderlineStat
+        isTerminalStat
+          ? `color: var(--accent); text-shadow: none;`
+          : isUnderlineStat
           ? `color: var(--text); text-shadow: none;
         border-bottom: 10px solid var(--accent); display: inline-block; padding-bottom: 8px;`
           : `background: linear-gradient(135deg, var(--accent), var(--accent-2));
         -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none;
         filter: drop-shadow(0 6px 18px rgba(63,208,201,0.25));`
       }
+    }
+    /* A literal terminal-prompt read ("> 49 Days_") instead of a hero
+       number — the stat is the one slide type where "gradient glow" vs
+       "underline" both still read as "a big number on a card"; this reads
+       as an actual command output instead. */
+    ${
+      isTerminalStat
+        ? `
+    .stat-value::before { content: '> '; color: var(--muted); }
+    .stat-value::after { content: '_'; color: var(--accent2); }
+    `
+        : ''
     }
     .stat-label { font-size: 34px; font-weight: 600; margin: 0 0 16px; }
     .stat-context { font-size: 28px; color: var(--muted); line-height: 1.5; margin: 0; }
@@ -364,11 +432,12 @@ function baseStyles(T) {
       font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 26px;
       color: ${isFlatIcon ? '#fff' : 'var(--accent)'};
       background: ${isFlatIcon ? 'var(--accent)' : 'transparent'};
-      flex: none; width: 52px; height: ${isFlatIcon ? '52px' : 'auto'};
+      flex: none; width: ${isTerminal ? '68px' : '52px'}; height: ${isFlatIcon ? '52px' : 'auto'};
       display: flex; align-items: center; justify-content: center;
       border-radius: ${isFlatIcon ? '0px' : '0'};
       text-align: center;
     }
+    ${isTerminal ? `.list-index::before { content: '['; color: var(--muted); } .list-index::after { content: ']'; color: var(--muted); }` : ''}
 
     /* ---- icon badges (assets/icons/tabler/*.svg via scripts/icons.mjs) ----
        Blueprint: soft gradient fill + glow shadow, rounded corners — reads
@@ -377,25 +446,39 @@ function baseStyles(T) {
        a glowing UI element, matching the rest of its flat-design card
        language. */
     .icon-badge {
+      position: relative;
       display: inline-flex; align-items: center; justify-content: center;
-      width: 92px; height: 92px; border-radius: ${isFlatIcon ? '0px' : '24px'}; flex: none;
-      background: ${isFlatIcon ? 'var(--accent)' : 'linear-gradient(135deg, rgba(63,208,201,0.20), rgba(108,139,255,0.12))'};
-      border: ${isFlatIcon ? '3px solid var(--border)' : '1px solid var(--border)'};
+      width: 92px; height: 92px; border-radius: ${isFlatIcon ? '0px' : isBracketIcon ? '0px' : '24px'}; flex: none;
+      background: ${
+        isFlatIcon ? 'var(--accent)' : isBracketIcon ? 'transparent' : 'linear-gradient(135deg, rgba(63,208,201,0.20), rgba(108,139,255,0.12))'
+      };
+      border: ${isFlatIcon ? '3px solid var(--border)' : isBracketIcon ? '1px solid var(--accent)' : '1px solid var(--border)'};
       color: ${isFlatIcon ? '#fffbf2' : 'var(--accent)'};
-      box-shadow: ${isFlatIcon ? 'none' : '0 10px 28px rgba(63,208,201,0.18)'};
+      box-shadow: ${isFlatIcon || isBracketIcon ? 'none' : '0 10px 28px rgba(63,208,201,0.18)'};
       margin-bottom: 32px;
+    }
+    ${
+      isBracketIcon
+        ? `
+    .icon-badge::before, .icon-badge::after {
+      content: ''; position: absolute; width: 14px; height: 14px; border-color: var(--accent); border-style: solid;
+    }
+    .icon-badge::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+    .icon-badge::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+    `
+        : ''
     }
     .icon-badge svg { width: 46px; height: 46px; stroke-width: 1.75; }
     .icon-badge-sm {
-      width: 56px; height: 56px; border-radius: ${isFlatIcon ? '0px' : '16px'}; margin-bottom: 0;
-      box-shadow: ${isFlatIcon ? 'none' : '0 6px 16px rgba(63,208,201,0.15)'};
+      width: 56px; height: 56px; border-radius: ${isFlatIcon || isBracketIcon ? '0px' : '16px'}; margin-bottom: 0;
+      box-shadow: ${isFlatIcon || isBracketIcon ? 'none' : '0 6px 16px rgba(63,208,201,0.15)'};
     }
     .icon-badge-sm svg { width: 28px; height: 28px; }
     .list-icon {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 52px; height: 52px; border-radius: ${isFlatIcon ? '0px' : '14px'}; flex: none;
-      background: ${isFlatIcon ? 'var(--accent)' : 'rgba(63,208,201,0.12)'};
-      border: ${isFlatIcon ? '2px solid var(--border)' : '1px solid var(--border)'};
+      width: 52px; height: 52px; border-radius: ${isFlatIcon || isBracketIcon ? '0px' : '14px'}; flex: none;
+      background: ${isFlatIcon ? 'var(--accent)' : isBracketIcon ? 'transparent' : 'rgba(63,208,201,0.12)'};
+      border: ${isFlatIcon ? '2px solid var(--border)' : isBracketIcon ? '1px solid var(--accent)' : '1px solid var(--border)'};
       color: ${isFlatIcon ? '#fffbf2' : 'var(--accent)'};
     }
     .list-icon svg { width: 26px; height: 26px; stroke-width: 1.75; }
